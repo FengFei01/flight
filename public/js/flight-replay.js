@@ -35,6 +35,7 @@
     this.lastTs = 0;
     this.framesPerSec = 60;
     this.onFrameChange = opts.onFrameChange || null;
+    this.motion = null;
 
     // Curve window — show 300 frames at a time
     this.curveWindow = 300;
@@ -42,6 +43,7 @@
 
   FlightReplay.prototype.loadData = function (parsedData) {
     this.data = parsedData;
+    this.motion = buildDisplayMotion(parsedData);
     this.frame = 0;
     this.framesPerSec = parsedData.count / Math.max(parsedData.durationSec, 0.1);
     if (this.framesPerSec > 500) this.framesPerSec = 60;
@@ -120,10 +122,11 @@
 
     ctx.clearRect(0, 0, w, h);
 
-    // Gyro data is angular velocity, not Euler attitude. Keep the visual cue
-    // bounded so legitimate high-rate flips do not render as runaway rotation.
-    var roll = clamp((d.gyroRoll[f] || 0) / 2000, -1, 1) * 0.75;
-    var pitch = clamp((d.gyroPitch[f] || 0) / 2000, -1, 1) * 0.75;
+    var motion = this.motion || buildDisplayMotion(d);
+    var rollDeg = motion.roll[f] || 0;
+    var pitchDeg = motion.pitch[f] || 0;
+    var yawRad = (motion.yaw[f] || 0) * Math.PI / 180;
+    var maxTiltDeg = motion.maxTiltDeg || 45;
 
     // Draw concentric reference rings
     ctx.strokeStyle = C.grid;
@@ -141,10 +144,10 @@
     ctx.moveTo(0, cy); ctx.lineTo(w, cy);
     ctx.stroke();
 
-    // Quad body — rotated by roll
+    // Quad body — top-down heading cue. Roll/pitch are shown on the bars below.
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.rotate(roll);
+    ctx.rotate(yawRad);
 
     // Arms
     var armLen = Math.min(cx, cy) * 0.6;
@@ -221,11 +224,21 @@
 
     // Pitch indicator bar on right edge
     var pitchBarH = h * 0.6;
-    var pitchY = cy - (pitch * pitchBarH / 2);
+    var pitchY = cy - clamp(pitchDeg / maxTiltDeg, -1, 1) * (pitchBarH / 2);
     ctx.fillStyle = 'rgba(0,212,255,0.08)';
     ctx.fillRect(w - 24, cy - pitchBarH / 2, 8, pitchBarH);
     ctx.fillStyle = C.accent;
     ctx.fillRect(w - 24, pitchY - 3, 8, 6);
+
+    // Roll indicator bar on bottom edge
+    var rollBarW = w * 0.48;
+    var rollBarX = cx - rollBarW / 2;
+    var rollBarY = h - 24;
+    var rollX = cx + clamp(rollDeg / maxTiltDeg, -1, 1) * (rollBarW / 2);
+    ctx.fillStyle = 'rgba(0,212,255,0.08)';
+    ctx.fillRect(rollBarX, rollBarY, rollBarW, 8);
+    ctx.fillStyle = C.accent;
+    ctx.fillRect(rollX - 3, rollBarY, 6, 8);
 
     // Gyro readouts
     ctx.fillStyle = C.dim;
@@ -378,9 +391,68 @@
     canvas.style.height = rect.height + 'px';
   }
 
+  function buildDisplayMotion(data) {
+    var count = Math.max(0, data && data.count ? data.count : 0);
+    var roll = new Array(count);
+    var pitch = new Array(count);
+    var yaw = new Array(count);
+    var maxTiltDeg = 45;
+
+    if (!data || count === 0) {
+      return { roll: [], pitch: [], yaw: [], maxTiltDeg: maxTiltDeg };
+    }
+
+    var sampleRate = data.sampleRateHz || (count / Math.max(data.durationSec || 0, 0.1));
+    if (!isFinite(sampleRate) || sampleRate < 1 || sampleRate > 500) sampleRate = 60;
+    var dt = 1 / sampleRate;
+
+    var rollAngle = 0;
+    var pitchAngle = 0;
+    var yawAngle = 0;
+    var rollRate = 0;
+    var pitchRate = 0;
+    var yawRate = 0;
+    var alpha = clamp(dt * 8, 0.04, 0.18);
+    var levelDecay = Math.exp(-dt / 1.8);
+
+    for (var i = 0; i < count; i++) {
+      rollRate += (sanitizeRate(data.gyroRoll[i]) - rollRate) * alpha;
+      pitchRate += (sanitizeRate(data.gyroPitch[i]) - pitchRate) * alpha;
+      yawRate += (sanitizeRate(data.gyroYaw[i]) - yawRate) * alpha;
+
+      // This is a display stabilizer, not absolute AHRS. Integrate gently and
+      // leak roll/pitch back toward level so parser spikes cannot spin the quad.
+      rollAngle = clamp((rollAngle + rollRate * dt * 0.22) * levelDecay, -maxTiltDeg, maxTiltDeg);
+      pitchAngle = clamp((pitchAngle + pitchRate * dt * 0.22) * levelDecay, -maxTiltDeg, maxTiltDeg);
+      yawAngle = wrapDeg(yawAngle + yawRate * dt * 0.08);
+
+      roll[i] = rollAngle;
+      pitch[i] = pitchAngle;
+      yaw[i] = yawAngle;
+    }
+
+    return { roll: roll, pitch: pitch, yaw: yaw, maxTiltDeg: maxTiltDeg };
+  }
+
+  function sanitizeRate(value) {
+    if (!isFinite(value)) return 0;
+    if (Math.abs(value) < 2) return 0;
+    return clamp(value, -2000, 2000);
+  }
+
+  function wrapDeg(value) {
+    while (value > 180) value -= 360;
+    while (value < -180) value += 360;
+    return value;
+  }
+
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
   }
 
   exports.FlightReplay = FlightReplay;
+  exports.buildDisplayMotion = buildDisplayMotion;
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = exports;
+  }
 })(typeof window !== 'undefined' ? window : {});

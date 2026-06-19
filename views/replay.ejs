@@ -238,7 +238,7 @@
   </div>
 </main>
 
-<script src="/js/flight-replay.js"></script>
+<script src="/js/flight-replay.js?v=20260619-attitude2"></script>
 <script>
 (function () {
   'use strict';
@@ -274,7 +274,7 @@
     showStatus('解析中... Parsing ' + file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB)');
     dropZone.style.display = 'none';
 
-    var worker = new Worker('/js/bbl-replay-worker.js');
+    var worker = new Worker('/js/bbl-replay-worker.js?v=20260619-gyro-scale');
     file.arrayBuffer().then(function (buf) {
       worker.postMessage({ buffer: buf }, [buf]);
     });
