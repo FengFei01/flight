@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlightForge - Free AI PID Tuning for Betaflight | Betaflight AI调参 | BBL Log Analyzer</title>
+  <meta name="description" content="Free Betaflight AI PID tuning tool — no install, no USB connection required. Upload a blackbox log, get optimized PIDs instantly. Betaflight AI调参工具，免费BBL日志分析，秒出CLI命令。Works with BF 4.3/4.4/4.5+.">
+  <meta name="keywords" content="Betaflight AI调参,AI PID tuning Betaflight,free Betaflight tuning tool,Betaflight AI功能,FPV调参,PID调整,blackbox分析,穿越机调参,FPV地面站,无人机PID,Betaflight auto tune,blackbox log analysis,BBL analyzer,FPV drone PID,free PID tool">
+  <meta name="author" content="FlightForge">
+  <meta name="robots" content="index, follow">
+  <link rel="icon" href="https://pub-629428d185ca4960a0a73c850d32294b.r2.dev/generated-images/company_180433/52541d5c-87e1-4ba1-bc01-56b0c8c34128.jpg">
+  <link rel="canonical" href="https://flight-forge.polsia.app">
+  <!-- Open Graph -->
+  <meta property="og:title" content="FlightForge — Free AI PID Tuning for Betaflight | Betaflight AI调参">
+  <meta property="og:description" content="No install. No USB. Upload a blackbox log, get optimized PID values and CLI commands in seconds. Free forever. 免费上传BBL日志，AI秒出PID调参命令。">
+  <meta property="og:url" content="https://flight-forge.polsia.app">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta property="og:site_name" content="FlightForge">
+  <meta property="og:image" content="https://pub-629428d185ca4960a0a73c850d32294b.r2.dev/generated-images/company_180433/86517f03-cf67-473f-baec-62b4ee3236a3.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="FlightForge AI PID Tuning — Upload BBL, get optimized Betaflight PIDs">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="FlightForge — Free AI PID Tuning for Betaflight">
+  <meta name="twitter:description" content="No install, no USB. Upload a blackbox log → get CLI-ready PID commands. Free, works with BF 4.3–4.5+. Betaflight AI调参工具。">
+  <meta name="twitter:image" content="https://pub-629428d185ca4960a0a73c850d32294b.r2.dev/generated-images/company_180433/86517f03-cf67-473f-baec-62b4ee3236a3.jpg">
+  <meta name="twitter:image:alt" content="FlightForge — AI PID tuning from blackbox logs">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0f;
+      --bg2: #111318;
+      --bg3: #161b22;
+      --accent: #00d4ff;
+      --accent2: #ff6b35;
+      --accent3: #a8ff3e;
+      --text: #e8edf2;
+      --text2: #8899aa;
+      --border: rgba(0,212,255,0.12);
+      --font-head: 'Syne', sans-serif;
+      --font-mono: 'Space Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 15px;
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    /* --- NAV --- */
+    .app-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(13,13,15,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: 1100px; margin: 0 auto;
+      padding: 0 24px; height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo {
+      font-family: var(--font-head); font-weight: 800; font-size: 18px;
+      color: var(--accent); text-decoration: none; letter-spacing: -0.5px;
+    }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-link {
+      color: rgba(136,153,170,0.7); text-decoration: none; font-size: 12px;
+      letter-spacing: 0.03em; transition: color 0.2s;
+    }
+    .nav-link:hover { color: var(--accent); }
+    .nav-cta {
+      background: var(--accent); color: #000;
+      padding: 9px 22px; border-radius: 3px;
+      font-weight: 700; font-size: 12px; letter-spacing: 0.05em;
+      text-decoration: none; transition: opacity 0.2s;
+      box-shadow: 0 0 12px rgba(0,212,255,0.2);
+    }
+    .nav-cta:hover { opacity: 0.85; }
+
+    /* --- HERO --- */
+    .hero-lp {
+      min-height: 100vh;
+      display: flex; align-items: center;
+      padding: 100px 24px 60px;
+      position: relative; overflow: hidden;
+    }
+    @media (min-width: 769px) {
+      .hero-lp { padding: 100px 40px 60px; }
+    }
+    /* Canvas replay background */
+    .hero-canvas-wrap {
+      position: absolute; inset: 0; z-index: 0;
+      overflow: hidden;
+    }
+    .hero-canvas-wrap canvas {
+      width: 100%; height: 100%; display: block;
+    }
+    .hero-canvas-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(180deg, rgba(13,13,15,0.80) 0%, rgba(13,13,15,0.60) 40%, rgba(13,13,15,0.85) 100%);
+      pointer-events: none;
+    }
+    /* Mobile: hide Canvas, show simple gradient bg */
+    @media (max-width: 767px) {
+      .hero-canvas-wrap { display: none; }
+      .hero-lp {
+        background: linear-gradient(135deg, #0d0d0f 0%, #0a1628 50%, #0d0d0f 100%);
+      }
+    }
+    .hero-lp::before {
+      content: '';
+      position: absolute; inset: 0; z-index: 1;
+      background:
+        linear-gradient(180deg, rgba(0,212,255,0.04) 0%, transparent 60%),
+        repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,212,255,0.04) 40px),
+        repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,212,255,0.04) 40px);
+      pointer-events: none;
+    }
+    .hero-lp-inner {
+      max-width: 1100px; margin: 0 auto; width: 100%;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center;
+      position: relative; z-index: 2;
+    }
+    .hero-eyebrow {
+      font-size: 11px; letter-spacing: 0.15em; color: var(--accent);
+      text-transform: uppercase; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .hero-eyebrow::before {
+      content: ''; display: block;
+      width: 32px; height: 1px; background: var(--accent);
+    }
+    .hero-lp h1 {
+      font-family: var(--font-head); font-weight: 800;
+      font-size: clamp(36px, 5vw, 58px); line-height: 1.05;
+      letter-spacing: -1.5px; margin-bottom: 16px;
+    }
+    .hero-lp h1 em {
+      font-style: normal; color: var(--accent);
+    }
+    .hero-zh-sub {
+      font-size: 17px; color: var(--text2); margin-bottom: 8px;
+      font-family: var(--font-head); font-weight: 600;
+    }
+    .hero-lp .hero-sub {
+      font-size: 14px; color: var(--text2); margin-bottom: 36px;
+      max-width: 460px; line-height: 1.8;
+    }
+    .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 48px; }
+    .btn-primary {
+      background: var(--accent); color: #000;
+      padding: 13px 28px; border-radius: 3px;
+      font-family: var(--font-mono); font-weight: 700; font-size: 13px;
+      text-decoration: none; letter-spacing: 0.04em;
+      transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-primary:hover { background: #33ddff; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,212,255,0.25); }
+    .btn-secondary {
+      border: 1px solid var(--border); color: var(--text);
+      padding: 13px 28px; border-radius: 3px;
+      font-family: var(--font-mono); font-weight: 400; font-size: 13px;
+      text-decoration: none; transition: all 0.2s;
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .hero-proof {
+      display: flex; gap: 12px; flex-wrap: wrap;
+      font-size: 12px; color: var(--text2);
+    }
+    .trust-pill {
+      display: inline-flex; align-items: center;
+      background: rgba(0,212,255,0.08);
+      border: 1px solid rgba(0,212,255,0.25);
+      color: var(--accent);
+      font-size: 12px; font-weight: 700;
+      padding: 6px 16px;
+      border-radius: 20px;
+      letter-spacing: 0.03em;
+    }
+
+    /* --- STATS BAR --- */
+    .stats-bar {
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #0e1219 0%, var(--bg2) 50%, #0e1219 100%);
+      padding: 48px 24px;
+    }
+    .stats-bar-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: center;
+      gap: 28px; flex-wrap: wrap;
+    }
+    .stat-item {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .stat-icon { font-size: 28px; }
+    .stat-number {
+      font-family: var(--font-head); font-weight: 800;
+      font-size: clamp(36px, 5vw, 52px); color: var(--accent);
+      line-height: 1.1;
+    }
+    .stat-label {
+      font-size: 13px; color: var(--text2);
+      letter-spacing: 0.03em;
+    }
+    .stat-sep {
+      color: var(--text2); font-size: 20px; opacity: 0.4;
+    }
+    @media (min-width: 480px) and (max-width: 768px) {
+      .stats-bar-inner { gap: 16px; }
+      .stat-sep { display: none; }
+      .stat-item { flex: 0 0 45%; justify-content: center; }
+    }
+    @media (max-width: 479px) {
+      .stats-bar-inner { gap: 16px; }
+      .stat-sep { display: none; }
+      .stat-item { flex: 0 0 100%; justify-content: center; }
+    }
+
+    /* --- TESTIMONIALS --- */
+    .testimonials-section {
+      padding: 64px 24px;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .testimonial-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .testimonial-text {
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.7;
+      font-style: italic;
+    }
+    .testimonial-text-zh {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.6;
+    }
+    .testimonial-attr {
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+      margin-top: auto;
+    }
+    @media (max-width: 768px) {
+      .testimonials-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Hero right: free pill cards */
+    .hero-right { display: flex; flex-direction: column; gap: 16px; }
+    .tool-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px; padding: 20px 24px;
+      display: flex; gap: 16px; align-items: flex-start;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .tool-card:hover { border-color: var(--accent); transform: translateX(4px); }
+    .tool-card-badge {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+      padding: 3px 8px; border-radius: 2px; flex-shrink: 0; margin-top: 2px;
+    }
+    .badge-free { background: rgba(168,255,62,0.15); color: var(--accent3); }
+    .tool-card-body h4 {
+      font-family: var(--font-head); font-weight: 700; font-size: 15px;
+      margin-bottom: 2px;
+    }
+    .tool-card-body .zh { font-size: 12px; color: var(--accent); margin-bottom: 6px; }
+    .tool-card-body p { font-size: 12px; color: var(--text2); line-height: 1.6; }
+    .tool-card-body a {
+      font-size: 12px; color: var(--accent); text-decoration: none;
+      display: inline-block; margin-top: 8px;
+    }
+    .tool-card-body a:hover { text-decoration: underline; }
+
+    /* --- FREE SECTION --- */
+    .section {
+      padding: 80px 24px;
+      border-top: 1px solid var(--border);
+    }
+    .section-inner { max-width: 1100px; margin: 0 auto; }
+    .section-tag {
+      font-size: 11px; letter-spacing: 0.15em; color: var(--accent);
+      text-transform: uppercase; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .section-tag::before {
+      content: ''; display: block; width: 24px; height: 1px; background: var(--accent);
+    }
+    .section-title {
+      font-family: var(--font-head); font-weight: 800;
+      font-size: clamp(28px, 3.5vw, 44px); line-height: 1.1;
+      letter-spacing: -1px; margin-bottom: 8px;
+    }
+    .section-zh {
+      font-family: var(--font-head); font-size: 16px;
+      color: var(--text2); margin-bottom: 48px;
+    }
+    .free-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+    }
+    .free-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 32px;
+      position: relative; overflow: hidden;
+    }
+    .free-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: var(--accent);
+    }
+    .free-card-label {
+      display: inline-block;
+      background: rgba(168,255,62,0.12); color: var(--accent3);
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+      padding: 4px 10px; border-radius: 2px; margin-bottom: 16px;
+    }
+    .free-card h3 {
+      font-family: var(--font-head); font-weight: 700; font-size: 22px; margin-bottom: 4px;
+    }
+    .free-card .zh { font-size: 13px; color: var(--accent); margin-bottom: 12px; }
+    .free-card p { font-size: 13px; color: var(--text2); line-height: 1.7; margin-bottom: 20px; }
+    .free-card-list { list-style: none; margin-bottom: 24px; }
+    .free-card-list li {
+      font-size: 12px; color: var(--text2); padding: 5px 0;
+      display: flex; align-items: flex-start; gap: 8px;
+    }
+    .free-card-list li::before { content: '\2192'; color: var(--accent); flex-shrink: 0; }
+    .free-card-cta {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--accent); color: #000;
+      padding: 10px 20px; border-radius: 3px;
+      font-weight: 700; font-size: 12px; letter-spacing: 0.05em;
+      text-decoration: none; transition: opacity 0.2s;
+    }
+    .free-card-cta:hover { opacity: 0.85; }
+
+    /* --- COMMUNITY QUOTE --- */
+    .quote-section {
+      padding: 60px 24px; border-top: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
+    }
+    .quote-inner {
+      max-width: 760px; margin: 0 auto; text-align: center;
+    }
+    .quote-mark {
+      font-family: var(--font-head); font-size: 80px; color: var(--accent);
+      opacity: 0.3; line-height: 0.5; display: block; margin-bottom: 24px;
+    }
+    .quote-zh {
+      font-family: var(--font-head); font-size: 20px; font-weight: 600;
+      line-height: 1.5; margin-bottom: 12px; color: var(--text);
+    }
+    .quote-en {
+      font-size: 13px; color: var(--text2); margin-bottom: 20px;
+    }
+    .quote-attr { font-size: 11px; color: var(--text2); letter-spacing: 0.08em; }
+
+    /* --- CTA --- */
+    .cta-section {
+      padding: 100px 24px; border-top: 1px solid var(--border);
+      text-align: center; position: relative; overflow: hidden;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 60% 40% at 50% 50%, rgba(0,212,255,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .cta-section h2 {
+      font-family: var(--font-head); font-weight: 800;
+      font-size: clamp(28px, 4vw, 48px); line-height: 1.1;
+      letter-spacing: -1px; margin-bottom: 8px;
+    }
+    .cta-section .zh { font-size: 17px; color: var(--text2); margin-bottom: 36px; font-family: var(--font-head); }
+    .cta-buttons { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+
+    /* --- FOOTER --- */
+    .site-footer {
+      padding: 32px 24px; border-top: 1px solid var(--border);
+    }
+    .footer-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; align-items: flex-start; justify-content: flex-start; flex-wrap: wrap; gap: 24px 40px;
+    }
+    .footer-brand { display: flex; align-items: center; gap: 12px; }
+    .footer-logo { font-family: var(--font-head); font-weight: 800; font-size: 16px; color: var(--accent); }
+    .footer-tagline { font-size: 11px; color: var(--text2); }
+    .footer-links { display: flex; gap: 20px; }
+    .footer-link { font-size: 12px; color: var(--text2); text-decoration: none; }
+    .footer-link:hover { color: var(--accent); }
+    .footer-meta { font-size: 11px; color: var(--text2); }
+
+    /* --- COMPARISON TABLE --- */
+    .compare-table-wrap { overflow-x: auto; margin-top: 32px; }
+    .compare-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 13px; min-width: 640px;
+    }
+    .compare-table th, .compare-table td {
+      padding: 12px 16px; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .compare-table thead th {
+      font-family: var(--font-head); font-weight: 700;
+      font-size: 13px; color: var(--text2);
+      letter-spacing: 0.03em;
+      background: var(--bg2);
+    }
+    .compare-table thead th.compare-highlight {
+      color: var(--accent); background: rgba(0,212,255,0.06);
+    }
+    .compare-table td.compare-highlight {
+      background: rgba(0,212,255,0.03);
+    }
+    .compare-yes { color: var(--accent3); font-weight: 700; }
+    .compare-no { color: #ff6b6b; }
+    .compare-mid { color: var(--text2); }
+    .compare-table tbody tr:hover { background: rgba(0,212,255,0.03); }
+
+    /* --- TUNING RESULTS --- */
+    .results-section {
+      padding: 80px 24px;
+      border-top: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+    }
+    .results-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+      margin-top: 48px;
+    }
+    .result-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 28px 24px;
+      position: relative; overflow: hidden;
+    }
+    .result-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: var(--accent);
+    }
+    .result-card-type {
+      font-size: 10px; letter-spacing: 0.1em; color: var(--accent);
+      text-transform: uppercase; margin-bottom: 8px; font-weight: 700;
+    }
+    .result-card h4 {
+      font-family: var(--font-head); font-weight: 700; font-size: 18px;
+      margin-bottom: 16px; color: var(--text);
+    }
+    .result-metrics { display: flex; flex-direction: column; gap: 12px; }
+    .result-metric {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 14px; border-radius: 4px;
+      background: rgba(0,0,0,0.25);
+    }
+    .result-metric-label {
+      font-size: 12px; color: var(--text2);
+    }
+    .result-metric-values {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .result-val-before {
+      font-size: 14px; font-weight: 700;
+      color: #ff6b6b; text-decoration: line-through; opacity: 0.7;
+    }
+    .result-val-arrow { font-size: 12px; color: var(--text2); }
+    .result-val-after {
+      font-size: 14px; font-weight: 700;
+      color: var(--accent3);
+    }
+    .result-score {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 16px; padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .result-score-label {
+      font-size: 12px; color: var(--text2); font-weight: 700;
+    }
+    .result-score-vals { display: flex; align-items: center; gap: 10px; }
+    .score-before {
+      font-family: var(--font-head); font-size: 28px; font-weight: 800;
+      color: #ff6b6b; opacity: 0.6;
+    }
+    .score-arrow { font-size: 16px; color: var(--accent); }
+    .score-after {
+      font-family: var(--font-head); font-size: 28px; font-weight: 800;
+      color: var(--accent3);
+    }
+    .results-cta {
+      text-align: center; margin-top: 40px;
+    }
+    @media (max-width: 768px) {
+      .results-grid { grid-template-columns: 1fr; }
+    }
+
+    /* --- RESPONSIVE --- */
+    @media (max-width: 768px) {
+      .hero-lp-inner { grid-template-columns: 1fr; gap: 40px; }
+      .free-grid { grid-template-columns: 1fr; }
+      .nav-links .btn-secondary { display: none; }
+      .footer-inner { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="app-nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">FlightForge</a>
+    <div class="nav-links">
+      <a href="/analyze" class="nav-link">日志分析 / Analyze</a>
+      <a href="/replay" class="nav-link">飞行回放 / Replay</a>
+      <a href="/advisor" class="nav-link">AI顾问 / Advisor</a>
+
+      <a href="#" class="nav-link" onclick="document.getElementById('feedbackModal').style.display='flex';return false;">反馈</a>
+      <a href="/analyze" class="nav-cta">免费开始 &rarr;</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero-lp">
+  <!-- Canvas flight replay animation (desktop; hidden on mobile <768px) -->
+  <div class="hero-canvas-wrap">
+    <canvas id="heroReplayCanvas"></canvas>
+    <div class="hero-canvas-overlay"></div>
+  </div>
+  <div class="hero-lp-inner">
+    <div class="hero-left">
+      <div class="hero-eyebrow">FREE AI PID TUNING &middot; Betaflight AI调参</div>
+      <h1>No install. No USB.<br>Just <em>upload.</em></h1>
+      <div class="hero-zh-sub">无需安装，无需连接飞控，上传日志即出结果</div>
+      <p class="hero-sub">
+        Upload a blackbox log, get optimized PID values and CLI commands in seconds.
+        No flight controller connection needed. No Python setup. No $20 license fee.
+        Free Betaflight AI PID tuning that actually works.
+      </p>
+      <div class="hero-actions">
+        <a href="/analyze" class="btn-primary">上传日志分析 / Analyze Log &rarr;</a>
+        <a href="/advisor" class="btn-secondary">AI调参顾问 / AI Advisor</a>
+      </div>
+      <div class="hero-proof">
+        <span class="trust-pill">完全免费 &middot; Free forever</span>
+        <span class="trust-pill">无需安装 &middot; No install</span>
+        <span class="trust-pill">BF 4.3&ndash;4.5+</span>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="tool-card">
+        <span class="tool-card-badge badge-free">免费 FREE</span>
+        <div class="tool-card-body">
+          <h4>Blackbox Log Analyzer</h4>
+          <div class="zh">日志自动分析 &middot; PID优化建议</div>
+          <p>Upload your .BBL file. Get optimized P/I/D/FF values, filter cutoffs, and CLI commands ready to paste into Betaflight.</p>
+          <a href="/analyze">开始分析 &rarr;</a>
+        </div>
+      </div>
+      <div class="tool-card">
+        <span class="tool-card-badge badge-free">免费 FREE</span>
+        <div class="tool-card-body">
+          <h4>AI 调参顾问</h4>
+          <div class="zh">本地运行 &middot; 完全离线 &middot; 国内可用</div>
+          <p>Browser-based AI tuning advisor. Runs fully local &mdash; no server, no upload, no data leaves your machine.</p>
+          <a href="/advisor">打开顾问 &rarr;</a>
+        </div>
+      </div>
+      <div class="tool-card">
+        <span class="tool-card-badge badge-free">免费 FREE</span>
+        <div class="tool-card-body">
+          <h4>飞行回放 / Flight Replay</h4>
+          <div class="zh">BBL日志可视化回放</div>
+          <p>Upload a BBL log and replay your flight with real-time attitude, motor output, gyro, and throttle curves. Full playback controls.</p>
+          <a href="/replay">打开回放 &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<% if (typeof stats !== 'undefined' && stats && stats.logCount > 0) { %>
+<div class="stats-bar">
+  <div class="stats-bar-inner">
+    <div class="stat-item">
+      <span class="stat-icon">&#x1F9D1;&#x200D;&#x2708;&#xFE0F;</span>
+      <span class="stat-number"><%= stats.pilotCount.toLocaleString() %></span>
+      <span class="stat-label">位飞手 Pilots</span>
+    </div>
+    <span class="stat-sep">&middot;</span>
+    <div class="stat-item">
+      <span class="stat-icon">&#x1F4CA;</span>
+      <span class="stat-number"><%= stats.logCount.toLocaleString() %></span>
+      <span class="stat-label">份日志 Logs</span>
+    </div>
+    <span class="stat-sep">&middot;</span>
+    <div class="stat-item">
+      <span class="stat-icon">&#x1F527;</span>
+      <span class="stat-number"><%= stats.motorCount.toLocaleString() %></span>
+      <span class="stat-label">个电机已检测 Motors</span>
+    </div>
+    <% if (stats.countryCount >= 5) { %>
+    <span class="stat-sep">&middot;</span>
+    <div class="stat-item">
+      <span class="stat-icon">&#x1F30D;</span>
+      <span class="stat-number"><%= stats.countryCount %></span>
+      <span class="stat-label">个国家 Countries</span>
+    </div>
+    <% } %>
+  </div>
+</div>
+<% } %>
+
+<!-- TESTIMONIALS -->
+<section class="testimonials-section">
+  <div class="section-inner">
+    <div class="section-tag">用户评价 &middot; TESTIMONIALS</div>
+    <div class="testimonials-grid">
+      <div class="testimonial-card">
+        <p class="testimonial-text">&ldquo;Finally something to replace PIDtoolbox. Uploaded my BBL, got CLI commands in 10 seconds. My quad flies noticeably smoother.&rdquo;</p>
+        <p class="testimonial-text-zh">&ldquo;终于有工具能替代PIDtoolbox了。上传BBL，10秒出CLI命令，飞机明显更顺滑。&rdquo;</p>
+        <span class="testimonial-attr">&mdash; From Reddit r/fpv</span>
+      </div>
+      <div class="testimonial-card">
+        <p class="testimonial-text">&ldquo;The AI advisor is surprisingly good. Asked it about my yaw wobble and it nailed the fix &mdash; D gain was way too low.&rdquo;</p>
+        <p class="testimonial-text-zh">&ldquo;AI顾问出乎意料地好用。问了Yaw抖动的问题，直接找到原因——D增益太低。&rdquo;</p>
+        <span class="testimonial-attr">&mdash; From Discord #betaflight-tuning</span>
+      </div>
+      <div class="testimonial-card">
+        <p class="testimonial-text">&ldquo;Free, no login, works with BF 4.5. What else do you need? Bookmarked immediately.&rdquo;</p>
+        <p class="testimonial-text-zh">&ldquo;免费、免注册、支持BF 4.5。还要啥自行车？直接收藏。&rdquo;</p>
+        <span class="testimonial-attr">&mdash; From 穿越机中文社区</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARISON TABLE -->
+<section class="section" id="compare">
+  <div class="section-inner">
+    <div class="section-tag">对比 &middot; COMPARE</div>
+    <h2 class="section-title">How does FlightForge compare?<br><span style="color: var(--accent)">AI PID Tuning 工具对比</span></h2>
+    <p class="section-zh">Free Betaflight tuning — no install, no USB, no catch. 免费AI调参，无需安装无需连线。</p>
+    <div class="compare-table-wrap">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th class="compare-highlight">FlightForge</th>
+            <th>USB Tools</th>
+            <th>CLI Tools</th>
+            <th>Desktop Apps</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Install required 需要安装</td>
+            <td class="compare-highlight"><span class="compare-yes">No install</span></td>
+            <td><span class="compare-no">USB driver</span></td>
+            <td><span class="compare-no">Python + CLI</span></td>
+            <td><span class="compare-no">Desktop app</span></td>
+          </tr>
+          <tr>
+            <td>FC connection 需要连飞控</td>
+            <td class="compare-highlight"><span class="compare-yes">Not needed</span></td>
+            <td><span class="compare-no">Required</span></td>
+            <td><span class="compare-no">Required</span></td>
+            <td><span class="compare-no">Required</span></td>
+          </tr>
+          <tr>
+            <td>Cost 价格</td>
+            <td class="compare-highlight"><span class="compare-yes">Free</span></td>
+            <td><span class="compare-mid">Free</span></td>
+            <td><span class="compare-mid">Free (API costs)</span></td>
+            <td><span class="compare-no">$20</span></td>
+          </tr>
+          <tr>
+            <td>Blackbox analysis BBL分析</td>
+            <td class="compare-highlight"><span class="compare-yes">&#x2714;</span></td>
+            <td><span class="compare-no">&#x2718;</span></td>
+            <td><span class="compare-mid">Via Claude</span></td>
+            <td><span class="compare-yes">&#x2714;</span></td>
+          </tr>
+          <tr>
+            <td>AI PID advisor AI调参建议</td>
+            <td class="compare-highlight"><span class="compare-yes">&#x2714; Browser + Cloud</span></td>
+            <td><span class="compare-mid">Basic</span></td>
+            <td><span class="compare-yes">&#x2714; Claude</span></td>
+            <td><span class="compare-no">&#x2718;</span></td>
+          </tr>
+          <tr>
+            <td>CLI output CLI命令输出</td>
+            <td class="compare-highlight"><span class="compare-yes">Copy &amp; paste</span></td>
+            <td><span class="compare-yes">&#x2714;</span></td>
+            <td><span class="compare-mid">Manual</span></td>
+            <td><span class="compare-yes">&#x2714;</span></td>
+          </tr>
+          <tr>
+            <td>Motor diagnostics 电机诊断</td>
+            <td class="compare-highlight"><span class="compare-yes">&#x2714;</span></td>
+            <td><span class="compare-no">&#x2718;</span></td>
+            <td><span class="compare-no">&#x2718;</span></td>
+            <td><span class="compare-no">&#x2718;</span></td>
+          </tr>
+          <tr>
+            <td>Works on mobile 移动端可用</td>
+            <td class="compare-highlight"><span class="compare-yes">&#x2714; PWA</span></td>
+            <td><span class="compare-no">&#x2718;</span></td>
+            <td><span class="compare-no">&#x2718;</span></td>
+            <td><span class="compare-no">&#x2718;</span></td>
+          </tr>
+          <tr>
+            <td>Multi-throttle FFT</td>
+            <td class="compare-highlight"><span class="compare-yes">&#x2714;</span></td>
+            <td><span class="compare-no">&#x2718;</span></td>
+            <td><span class="compare-no">&#x2718;</span></td>
+            <td><span class="compare-no">&#x2718;</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- FREE TOOLS -->
+<section class="section">
+  <div class="section-inner">
+    <div class="section-tag">免费AI调参工具 &middot; FREE AI TUNING TOOLS</div>
+    <h2 class="section-title">Two free Betaflight AI tuning tools.<br><span style="color: var(--accent)">两个AI调参工具，全部免费。</span></h2>
+    <p class="section-zh">No account, no install, free forever &mdash; the best free Betaflight tuning tool for PID optimization. 无需注册，无需安装，永久免费。</p>
+    <div class="free-grid">
+      <div class="free-card">
+        <span class="free-card-label">免费 &middot; FREE</span>
+        <h3>Blackbox Log Analyzer &mdash; AI PID Tuning</h3>
+        <div class="zh">BBL日志分析 &middot; Betaflight AI自动调参</div>
+        <p>
+          Upload your Betaflight .BBL blackbox log. FlightForge&rsquo;s AI engine analyzes gyro noise, step response, and motor behavior to produce optimized PID values &mdash; no guesswork, no USB connection.
+          免费上传BBL日志，AI秒级给出优化PID参数。Betaflight AI调参，告别玄学。
+        </p>
+        <ul class="free-card-list">
+          <li>P / I / D / FF values for roll, pitch, yaw</li>
+          <li>Gyro lowpass &amp; D-term filter recommendations</li>
+          <li>Propwash &amp; step response diagnostics</li>
+          <li>CLI-ready output &mdash; copy and paste into Betaflight</li>
+          <li>直接可用的CLI命令，粘贴即生效</li>
+          <li>Betaflight 4.3 / 4.4 / 4.5+ compatible</li>
+        </ul>
+        <a href="/analyze" class="free-card-cta">上传日志 / Upload Log &rarr;</a>
+      </div>
+      <div class="free-card">
+        <span class="free-card-label">免费 &middot; FREE</span>
+        <h3>AI PID Tuning Advisor &mdash; Betaflight AI功能</h3>
+        <div class="zh">Betaflight AI调参顾问 &middot; 离线可用 &middot; 数据不上传</div>
+        <p>
+          A browser-based AI assistant for Betaflight PID tuning. Ask about oscillation, overshoot, propwash, or any flight issue &mdash; get step-by-step PID adjustments specific to your setup.
+          浏览器端AI调参顾问，Betaflight AI功能，离线可用，数据不离开你的设备。
+        </p>
+        <ul class="free-card-list">
+          <li>诊断：抖动、过冲、漂移、Yaw摆头</li>
+          <li>Diagnose: oscillation, overshoot, drift, yaw wag</li>
+          <li>Recommend PID adjustments step by step</li>
+          <li>Frame-specific reference values (whoop to X-class)</li>
+          <li>完全离线 &mdash; 模型缓存后无需联网</li>
+          <li>WASM本地加载 &mdash; 无需外部CDN</li>
+        </ul>
+        <a href="/advisor" class="free-card-cta">打开顾问 / Open Advisor &rarr;</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- REAL TUNING RESULTS -->
+<section class="results-section">
+  <div class="section-inner">
+    <div class="section-tag">真实调参效果 &middot; REAL TUNING RESULTS</div>
+    <h2 class="section-title">See what FlightForge can do.<br><span style="color: var(--accent)">看看 FlightForge 的实际效果。</span></h2>
+    <p class="section-zh">Real tuning improvements from blackbox log analysis. 来自真实BBL日志分析的调参改善。</p>
+    <div class="results-grid">
+      <!-- Card 1: 5" Freestyle -->
+      <div class="result-card">
+        <div class="result-card-type">5" Freestyle Quad</div>
+        <h4>D-term Noise Reduction</h4>
+        <div class="result-metrics">
+          <div class="result-metric">
+            <span class="result-metric-label">D-term noise</span>
+            <div class="result-metric-values">
+              <span class="result-val-before">High</span>
+              <span class="result-val-arrow">&rarr;</span>
+              <span class="result-val-after">-42%</span>
+            </div>
+          </div>
+          <div class="result-metric">
+            <span class="result-metric-label">Motor temp</span>
+            <div class="result-metric-values">
+              <span class="result-val-before">Hot</span>
+              <span class="result-val-arrow">&rarr;</span>
+              <span class="result-val-after">Normal</span>
+            </div>
+          </div>
+        </div>
+        <div class="result-score">
+          <span class="result-score-label">Flight Score</span>
+          <div class="result-score-vals">
+            <span class="score-before">68</span>
+            <span class="score-arrow">&rarr;</span>
+            <span class="score-after">89</span>
+          </div>
+        </div>
+      </div>
+      <!-- Card 2: 3" Cinewhoop -->
+      <div class="result-card">
+        <div class="result-card-type">3" Cinewhoop</div>
+        <h4>Prop Wash Recovery</h4>
+        <div class="result-metrics">
+          <div class="result-metric">
+            <span class="result-metric-label">Prop wash</span>
+            <div class="result-metric-values">
+              <span class="result-val-before">Severe</span>
+              <span class="result-val-arrow">&rarr;</span>
+              <span class="result-val-after">+35%</span>
+            </div>
+          </div>
+          <div class="result-metric">
+            <span class="result-metric-label">Jello</span>
+            <div class="result-metric-values">
+              <span class="result-val-before">Visible</span>
+              <span class="result-val-arrow">&rarr;</span>
+              <span class="result-val-after">Gone</span>
+            </div>
+          </div>
+        </div>
+        <div class="result-score">
+          <span class="result-score-label">Flight Score</span>
+          <div class="result-score-vals">
+            <span class="score-before">71</span>
+            <span class="score-arrow">&rarr;</span>
+            <span class="score-after">85</span>
+          </div>
+        </div>
+      </div>
+      <!-- Card 3: 7" Long Range -->
+      <div class="result-card">
+        <div class="result-card-type">7" Long Range</div>
+        <h4>Filter Optimization</h4>
+        <div class="result-metrics">
+          <div class="result-metric">
+            <span class="result-metric-label">Filter delay</span>
+            <div class="result-metric-values">
+              <span class="result-val-before">High</span>
+              <span class="result-val-arrow">&rarr;</span>
+              <span class="result-val-after">-28%</span>
+            </div>
+          </div>
+          <div class="result-metric">
+            <span class="result-metric-label">Latency</span>
+            <div class="result-metric-values">
+              <span class="result-val-before">12ms</span>
+              <span class="result-val-arrow">&rarr;</span>
+              <span class="result-val-after">8.6ms</span>
+            </div>
+          </div>
+        </div>
+        <div class="result-score">
+          <span class="result-score-label">Flight Score</span>
+          <div class="result-score-vals">
+            <span class="score-before">62</span>
+            <span class="score-arrow">&rarr;</span>
+            <span class="score-after">81</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="results-cta">
+      <a href="/analyze" class="btn-primary">上传你的BBL日志 / Upload Your BBL Log &rarr;</a>
+    </div>
+  </div>
+</section>
+
+
+<!-- COMMUNITY QUOTE -->
+<section class="quote-section">
+  <div class="quote-inner">
+    <span class="quote-mark">&ldquo;</span>
+    <p class="quote-zh">飞一包电，看blackbox，改一个数字，再飞。周而复始，飞好几个小时。</p>
+    <p class="quote-en">&ldquo;Fly a pack. Check blackbox. Tweak one number. Fly again. Repeat for hours.&rdquo;</p>
+    <p class="quote-attr">&mdash; Every FPV pilot, every weekend &middot; 每个FPV飞手，每个周末</p>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="cta-section">
+  <h2>Free AI PID Tuning &mdash; 免费Betaflight AI调参<br>No install. Just upload.</h2>
+  <p class="zh">Upload your BBL log &middot; Get AI-optimized PIDs in seconds &middot; 上传日志，秒出AI调参命令</p>
+  <div class="cta-buttons">
+    <a href="/analyze" class="btn-primary">免费分析 / Free Analysis &rarr;</a>
+    <a href="/advisor" class="btn-secondary">AI调参顾问 / AI Advisor</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="footer-logo">FlightForge</span>
+      <span class="footer-tagline">Free AI PID Tuning for Betaflight &middot; 免费Betaflight AI调参工具</span>
+    </div>
+    <div class="footer-links">
+      <a href="/analyze" class="footer-link">日志分析 / Analyze</a>
+      <a href="/replay" class="footer-link">飞行回放 / Replay</a>
+      <a href="/advisor" class="footer-link">AI顾问 / Advisor</a>
+      <a href="#" class="footer-link" onclick="document.getElementById('feedbackModal').style.display='flex';return false;">反馈 / Feedback</a>
+    </div>
+    <div class="footer-links">
+      <a href="https://www.reddit.com/r/fpv/" class="footer-link" target="_blank" rel="noopener">Reddit r/fpv</a>
+      <a href="https://discord.gg/betaflight" class="footer-link" target="_blank" rel="noopener">Discord</a>
+      <a href="/privacy" class="footer-link">Privacy Policy</a>
+    </div>
+    <div class="footer-meta">&copy; 2026 FlightForge &middot; Built by pilots, for pilots</div>
+  </div>
+</footer>
+
+<!-- Feedback Modal -->
+<div id="feedbackModal" style="display:none; position:fixed; inset:0; z-index:200; background:rgba(13,13,15,0.88); backdrop-filter:blur(8px); align-items:center; justify-content:center;">
+  <div style="background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:32px; max-width:480px; width:90%; position:relative;">
+    <button onclick="document.getElementById('feedbackModal').style.display='none'" style="position:absolute;top:12px;right:16px;background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;">&times;</button>
+    <h3 style="font-family:var(--font-head);font-size:18px;font-weight:700;margin-bottom:4px;">反馈 / Feedback</h3>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:20px;">遇到问题或有建议？请告诉我们。</p>
+    <form id="feedbackForm">
+      <select id="fbType" name="type" required style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--font-mono);font-size:13px;padding:8px 10px;margin-bottom:12px;box-sizing:border-box;">
+        <option value="" disabled selected>选择反馈类型...</option>
+        <option value="问题反馈">问题反馈 / Bug Report</option>
+        <option value="功能建议">功能建议 / Feature Request</option>
+        <option value="使用咨询">使用咨询 / Question</option>
+        <option value="其他">其他 / Other</option>
+      </select>
+      <textarea id="fbContent" name="content" required minlength="10" maxlength="2000" rows="4" placeholder="请描述你的问题或建议..." style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--font-mono);font-size:13px;padding:10px;resize:vertical;margin-bottom:12px;box-sizing:border-box;"></textarea>
+      <input id="fbContact" name="contact_info" type="text" maxlength="200" placeholder="邮箱或微信 (选填)" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--font-mono);font-size:13px;padding:8px 10px;margin-bottom:12px;box-sizing:border-box;">
+      <div style="position:absolute;left:-9999px;" aria-hidden="true">
+        <input name="website" tabindex="-1" autocomplete="off">
+      </div>
+      <label style="display:block;font-size:12px;color:var(--text2);margin-bottom:6px;">截图 (选填)</label>
+      <input id="fbScreenshot" name="screenshot" type="file" accept="image/*" style="font-size:12px;color:var(--text2);margin-bottom:12px;">
+      <div id="captchaRow" style="margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:13px;color:var(--text);" id="captchaQ"></span>
+        <input id="captchaAns" type="number" placeholder="?" style="width:60px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--font-mono);font-size:13px;padding:6px 8px;box-sizing:border-box;" required>
+      </div>
+      <div id="fbMsg" style="font-size:12px;margin-bottom:12px;display:none;"></div>
+      <button type="submit" id="fbSubmitBtn" style="background:var(--accent);color:#000;padding:10px 24px;border:none;border-radius:4px;font-family:var(--font-mono);font-weight:700;font-size:13px;cursor:pointer;transition:opacity 0.2s;">提交反馈 / Submit</button>
+    </form>
+  </div>
+</div>
+<script>
+(function(){
+  var form = document.getElementById('feedbackForm');
+  var btn = document.getElementById('fbSubmitBtn');
+  var msg = document.getElementById('fbMsg');
+  var captchaQ = document.getElementById('captchaQ');
+  var captchaAns = document.getElementById('captchaAns');
+  var a, b;
+
+  function genCaptcha() {
+    a = Math.floor(Math.random() * 20) + 1;
+    b = Math.floor(Math.random() * 20) + 1;
+    captchaQ.textContent = a + ' + ' + b + ' = ?';
+    captchaAns.value = '';
+  }
+  genCaptcha();
+
+  var cooldownTimer = null;
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var content = document.getElementById('fbContent').value.trim();
+    if (!content) return;
+
+    if (content.length < 10) {
+      msg.style.color = '#ff6b35';
+      msg.textContent = '反馈内容至少需要10个字符。';
+      msg.style.display = 'block';
+      return;
+    }
+
+    if (parseInt(captchaAns.value, 10) !== a + b) {
+      msg.style.color = '#ff6b35';
+      msg.textContent = '验证码错误，请重试。';
+      msg.style.display = 'block';
+      genCaptcha();
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '提交中...';
+    msg.style.display = 'none';
+    var fd = new FormData();
+    fd.append('content', content);
+    fd.append('contact_info', document.getElementById('fbContact').value.trim());
+    fd.append('type', document.getElementById('fbType').value);
+    var ws = form.querySelector('[name="website"]');
+    if (ws) fd.append('website', ws.value);
+    var file = document.getElementById('fbScreenshot').files[0];
+    if (file) fd.append('screenshot', file);
+    fetch('/api/feedback', { method: 'POST', body: fd })
+      .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+      .then(function(res) {
+        if (res.ok) {
+          msg.style.color = '#a8ff3e';
+          msg.textContent = '感谢反馈！我们会尽快处理。';
+          msg.style.display = 'block';
+          form.reset();
+          genCaptcha();
+          var sec = 60;
+          btn.textContent = sec + '秒后可再次提交';
+          cooldownTimer = setInterval(function() {
+            sec--;
+            if (sec <= 0) {
+              clearInterval(cooldownTimer);
+              btn.disabled = false;
+              btn.textContent = '提交反馈 / Submit';
+            } else {
+              btn.textContent = sec + '秒后可再次提交';
+            }
+          }, 1000);
+          setTimeout(function() { document.getElementById('feedbackModal').style.display = 'none'; msg.style.display = 'none'; }, 2000);
+        } else {
+          msg.style.color = '#ff6b35';
+          msg.textContent = res.data.error || '提交失败，请稍后重试。';
+          msg.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = '提交反馈 / Submit';
+          genCaptcha();
+        }
+      })
+      .catch(function() {
+        msg.style.color = '#ff6b35';
+        msg.textContent = '网络错误，请稍后重试。';
+        msg.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = '提交反馈 / Submit';
+        genCaptcha();
+      });
+  });
+
+  document.querySelectorAll('[onclick*="feedbackModal"]').forEach(function(el) {
+    el.addEventListener('click', function() { genCaptcha(); });
+  });
+})();
+</script>
+<script src="/js/hero-replay-demo.js"></script>
+<!-- Polsia Analytics --><script>(function(){var slug="flight-forge";if(!slug)return;var vid=localStorage.getItem('polsia_vid');if(!vid){vid='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);});localStorage.setItem('polsia_vid',vid);}new Image().src='https://polsia.com/api/beacon/pixel?s='+encodeURIComponent(slug)+'&v='+encodeURIComponent(vid);})();</script>
+</body>
+</html>

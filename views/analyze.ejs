@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analyze Blackbox Log - FlightForge</title>
+  <link rel="icon" href="https://pub-629428d185ca4960a0a73c850d32294b.r2.dev/generated-images/company_180433/52541d5c-87e1-4ba1-bc01-56b0c8c34128.jpg">
+  <meta name="description" content="Upload your Betaflight Blackbox .BBL file for instant FFT noise analysis, motor resonance detection, and automatic notch filter configuration. Free, no signup required.">
+  <meta name="keywords" content="blackbox FFT analysis,motor resonance detection,notch filter auto config,Betaflight blackbox,FPV日志分析,噪声频谱分析">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://flight-forge.polsia.app/analyze">
+  <!-- Open Graph -->
+  <meta property="og:title" content="Analyze Blackbox Log - FlightForge">
+  <meta property="og:description" content="Upload your Betaflight Blackbox .BBL file for instant FFT noise analysis, motor resonance detection, and automatic notch filter configuration.">
+  <meta property="og:url" content="https://flight-forge.polsia.app/analyze">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://pub-629428d185ca4960a0a73c850d32294b.r2.dev/generated-images/company_180433/86517f03-cf67-473f-baec-62b4ee3236a3.jpg">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Analyze Blackbox Log - FlightForge">
+  <meta name="twitter:description" content="Upload your BBL file for instant FFT analysis, resonance detection, and auto notch filter config.">
+  <meta name="twitter:image" content="https://pub-629428d185ca4960a0a73c850d32294b.r2.dev/generated-images/company_180433/86517f03-cf67-473f-baec-62b4ee3236a3.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <!-- Nav -->
+  <nav class="app-nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">FlightForge</a>
+      <div class="nav-links">
+        <a href="/analyze" class="nav-link active">Analyze</a>
+        <a href="/advisor" class="nav-link">AI 顾问</a>
+        <a href="#" class="nav-link" onclick="document.getElementById('feedbackModal').style.display='flex';return false;">反馈</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="app-main">
+    <!-- BLE Flight Controller Connector -->
+    <div class="ble-connector-wrap" id="bleConnectorPanel">
+      <div class="ble-connector-inner">
+        <div class="ble-connector-left">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M6.5 6.5l11 11M12 2v20M17.5 6.5l-11 11"/></svg>
+          <div class="ble-connector-info">
+            <div class="ble-connector-row">
+              <span id="bleConnDot" class="ble-dot ble-dot-disconnected"></span>
+              <span id="bleConnStatus" class="ble-status-text">Not connected</span>
+            </div>
+            <div id="bleFwInfo" class="ble-fw-info" style="display:none"></div>
+          </div>
+        </div>
+        <div class="ble-connector-btns">
+          <div id="fcTransportBtns" class="fc-transport-btns">
+            <button type="button" id="fcBleBtn" class="btn-ble btn-ble-transport">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 6.5l11 11M12 2v20M17.5 6.5l-11 11"/></svg>
+              BLE
+            </button>
+            <button type="button" id="fcUsbBtn" class="btn-ble btn-ble-transport btn-usb">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><circle cx="12" cy="14" r="2"/></svg>
+              USB
+            </button>
+            <button type="button" id="fcScanAllBtn" class="btn-ble btn-ble-transport btn-scan-all" title="Scan all Bluetooth devices (for non-standard BLE modules)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+              Scan All
+            </button>
+          </div>
+          <button type="button" id="bleConnBtn" class="btn-ble" style="display:none">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 6.5l11 11M12 2v20M17.5 6.5l-11 11"/></svg>
+            Connect FC
+          </button>
+          <button type="button" id="bleScanAllBtn" class="btn-ble btn-ble-scanall" title="Show all Bluetooth devices (use if your FC doesn't appear)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Scan All
+          </button>
+          <button type="button" id="bleDiscBtn" class="btn-ble btn-ble-disconnect" style="display:none">Disconnect</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="upload-container">
+      <div class="upload-header">
+        <div class="hero-badge" style="margin-bottom: 16px">LOG ANALYZER</div>
+        <h1>Upload Your Blackbox Log</h1>
+        <p class="upload-sub">Drop a <span class="mono">.BBL</span> file from your flight controller. FlightForge analyzes gyro data, motor output, and error signals to recommend optimized PID values.</p>
+      </div>
+
+      <% if (error) { %>
+        <div class="error-banner">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span><%= error %></span>
+        </div>
+      <% } %>
+
+      <form id="uploadForm" action="/analyze" method="POST" enctype="multipart/form-data">
+        <div id="dropZone" class="drop-zone">
+          <div class="drop-icon">
+            <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
+              <rect x="8" y="16" width="48" height="40" rx="4" stroke="#00d4ff" stroke-width="2" opacity="0.5"/>
+              <path d="M32 8 L32 36" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round"/>
+              <path d="M22 18 L32 8 L42 18" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <p class="drop-label">Drag & drop your <strong>.BBL</strong> file here</p>
+          <p class="drop-hint">or click to browse • Max 50MB</p>
+          <input type="file" id="bblInput" name="bblFile" accept=".bbl,.bfl" hidden>
+        </div>
+
+        <div id="filePreview" class="file-preview" style="display:none">
+          <div class="file-info">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#00d4ff" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <div>
+              <span id="fileName" class="file-name"></span>
+              <span id="fileSize" class="file-size"></span>
+            </div>
+          </div>
+          <button type="button" id="removeFile" class="file-remove" title="Remove file">&times;</button>
+        </div>
+
+        <button type="submit" id="analyzeBtn" class="btn-primary" disabled>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          <span>Analyze Log</span>
+        </button>
+
+        <!-- Progress overlay shown during upload + analysis -->
+        <div id="progressOverlay" class="progress-overlay" style="display:none">
+          <div class="progress-card">
+            <div class="progress-spinner-ring"></div>
+            <p id="progressLabel" class="progress-label">Uploading file...</p>
+            <div class="progress-bar-track">
+              <div id="progressBar" class="progress-bar-fill" style="width:0%"></div>
+            </div>
+            <p id="progressHint" class="progress-hint">This usually takes a few seconds</p>
+          </div>
+        </div>
+      </form>
+
+      <div class="upload-features">
+        <div class="uf-item">
+          <span class="uf-icon">&#9889;</span>
+          <span>Instant analysis</span>
+        </div>
+        <div class="uf-item">
+          <span class="uf-icon">&#128274;</span>
+          <span>Files processed in-memory, never stored</span>
+        </div>
+        <div class="uf-item">
+          <span class="uf-icon">&#9881;</span>
+          <span>BF 4.3 / 4.4 / 4.5+ compatible</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/analysis-cache.js"></script>
+  <script>
+    (function() {
+      var dropZone = document.getElementById('dropZone');
+      var input = document.getElementById('bblInput');
+      var form = document.getElementById('uploadForm');
+      var btn = document.getElementById('analyzeBtn');
+      var preview = document.getElementById('filePreview');
+      var nameEl = document.getElementById('fileName');
+      var sizeEl = document.getElementById('fileSize');
+      var removeBtn = document.getElementById('removeFile');
+      var overlay = document.getElementById('progressOverlay');
+      var progressLabel = document.getElementById('progressLabel');
+      var progressBar = document.getElementById('progressBar');
+      var progressHint = document.getElementById('progressHint');
+
+      var TIMEOUT_MS = 30000; // 30s client-side timeout
+
+      if (typeof AnalysisCache !== 'undefined' && AnalysisCache.isSupported()) {
+        AnalysisCache.cleanupExpired().catch(function(err) {
+          console.warn('[analyze] Failed to clean IndexedDB cache:', err);
+        });
+      }
+
+      dropZone.addEventListener('click', function() { input.click(); });
+
+      dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+      });
+      dropZone.addEventListener('dragleave', function() {
+        dropZone.classList.remove('dragover');
+      });
+      dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+          input.files = e.dataTransfer.files;
+          showFile(e.dataTransfer.files[0]);
+        }
+      });
+
+      input.addEventListener('change', function() {
+        if (input.files.length) showFile(input.files[0]);
+      });
+
+      removeBtn.addEventListener('click', function() {
+        input.value = '';
+        preview.style.display = 'none';
+        dropZone.style.display = 'flex';
+        btn.disabled = true;
+        if (typeof AnalysisCache !== 'undefined' && AnalysisCache.isSupported()) {
+          AnalysisCache.clearLatestFile().catch(function(err) {
+            console.warn('[analyze] Failed to clear IndexedDB cache:', err);
+          });
+        }
+      });
+
+      function showFile(f) {
+        nameEl.textContent = f.name;
+        sizeEl.textContent = (f.size / 1024).toFixed(1) + ' KB';
+        preview.style.display = 'flex';
+        dropZone.style.display = 'none';
+        btn.disabled = false;
+      }
+
+      function showError(msg) {
+        overlay.style.display = 'none';
+        btn.disabled = false;
+        btn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span>Analyze Log</span>';
+        // Insert or update error banner
+        var existing = document.querySelector('.error-banner');
+        if (existing) { existing.querySelector('span').textContent = msg; return; }
+        var banner = document.createElement('div');
+        banner.className = 'error-banner';
+        banner.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>' + msg + '</span>';
+        form.parentNode.insertBefore(banner, form);
+      }
+
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (!input.files || !input.files.length) return;
+
+        // Clear old errors
+        var oldErr = document.querySelector('.error-banner');
+        if (oldErr) oldErr.remove();
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Analyzing...';
+        overlay.style.display = 'flex';
+        progressLabel.textContent = 'Preparing local FFT cache...';
+        progressBar.style.width = '4%';
+        progressHint.textContent = 'Caching this BBL in your browser for throttle range analysis';
+
+        persistLatestFile(input.files[0]).finally(function() {
+          progressLabel.textContent = 'Uploading file...';
+          progressBar.style.width = '0%';
+          progressHint.textContent = 'This usually takes a few seconds';
+          startUpload(input.files[0]);
+        });
+      });
+
+      function persistLatestFile(file) {
+        if (typeof AnalysisCache === 'undefined' || !AnalysisCache.isSupported()) {
+          return Promise.resolve(false);
+        }
+        return AnalysisCache.storeLatestFile(file).catch(function(err) {
+          console.warn('[analyze] Failed to cache BBL for client-side FFT:', err);
+          return false;
+        });
+      }
+
+      function startUpload(file) {
+        var formData = new FormData();
+        formData.append('bblFile', file);
+        var xhr = new XMLHttpRequest();
+        var timedOut = false;
+        var timeoutId = setTimeout(function() {
+          timedOut = true;
+          xhr.abort();
+          showError('上传/分析超时 (30秒)。请检查网络连接，或尝试上传更小的日志文件。');
+        }, TIMEOUT_MS);
+
+        // Upload progress
+        xhr.upload.addEventListener('progress', function(ev) {
+          if (ev.lengthComputable) {
+            var pct = Math.round((ev.loaded / ev.total) * 50); // upload = 0-50%
+            progressBar.style.width = pct + '%';
+            if (pct >= 50) {
+              progressLabel.textContent = 'Analyzing flight data...';
+              progressHint.textContent = 'Parsing gyro, motor, and PID data';
+            }
+          }
+        });
+
+        xhr.addEventListener('load', function() {
+          clearTimeout(timeoutId);
+          if (analysisInterval) clearInterval(analysisInterval);
+          if (timedOut) return;
+          progressBar.style.width = '100%';
+
+          if (xhr.status >= 200 && xhr.status < 300) {
+            // Success — server returned full results HTML
+            document.open();
+            document.write(xhr.responseText);
+            document.close();
+          } else {
+            // Map common HTTP errors to user-friendly messages
+            var msg;
+            try {
+              var body = JSON.parse(xhr.responseText);
+              if (body.error) { msg = body.error; }
+            } catch (_) { /* response was not JSON */ }
+            if (!msg) {
+              switch (xhr.status) {
+                case 400: msg = '文件无效或格式不正确，请上传 .BBL 文件。'; break;
+                case 403: msg = '上传被拒绝 (403 Forbidden)。请刷新页面后重试，或换一个浏览器。'; break;
+                case 413: msg = '文件太大。最大支持 50MB。'; break;
+                case 504: msg = '分析超时。请尝试上传更小的日志文件。'; break;
+                default:
+                  if (xhr.status >= 500) msg = '服务器错误 (' + xhr.status + ')，请稍后重试。';
+                  else msg = '上传失败 (HTTP ' + xhr.status + ')，请刷新页面后重试。';
+              }
+            }
+            showError(msg);
+          }
+        });
+
+        xhr.addEventListener('error', function() {
+          clearTimeout(timeoutId);
+          if (analysisInterval) clearInterval(analysisInterval);
+          if (timedOut) return;
+          showError('网络错误 — 请检查网络连接后重试。如问题持续，请尝试换一个浏览器。');
+        });
+
+        xhr.addEventListener('abort', function() {
+          clearTimeout(timeoutId);
+          if (analysisInterval) clearInterval(analysisInterval);
+          if (!timedOut) showError('上传已取消。');
+        });
+
+        // Fake progress animation for the analysis phase (50-90%)
+        var analysisInterval;
+        xhr.upload.addEventListener('loadend', function() {
+          progressBar.style.width = '50%';
+          progressLabel.textContent = 'Analyzing flight data...';
+          progressHint.textContent = 'Parsing gyro, motor, and PID data';
+          var fakePct = 50;
+          analysisInterval = setInterval(function() {
+            fakePct += 2;
+            if (fakePct > 90) { clearInterval(analysisInterval); return; }
+            progressBar.style.width = fakePct + '%';
+            if (fakePct > 70) progressHint.textContent = 'Generating PID recommendations...';
+          }, 500);
+        });
+
+        xhr.open('POST', '/analyze');
+        xhr.send(formData);
+      }
+    })();
+  </script>
+  <script src="/js/fc-transport.js"></script>
+  <script src="/js/msp-client.js"></script>
+  <script src="/js/fc-connection-manager.js"></script>
+  <script src="/js/ble-connector.js"></script>
+<!-- Feedback Modal -->
+<div id="feedbackModal" style="display:none; position:fixed; inset:0; z-index:200; background:rgba(10,14,23,0.88); backdrop-filter:blur(8px); align-items:center; justify-content:center;">
+  <div style="background:var(--bg-card); border:1px solid rgba(0,212,255,0.12); border-radius:var(--radius-sm); padding:32px; max-width:480px; width:90%; position:relative;">
+    <button onclick="document.getElementById('feedbackModal').style.display='none'" style="position:absolute;top:12px;right:16px;background:none;border:none;color:var(--fg-muted);font-size:20px;cursor:pointer;">&times;</button>
+    <h3 style="font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:4px;">反馈 / Feedback</h3>
+    <p style="font-size:12px;color:var(--fg-dim);margin-bottom:20px;">遇到问题或有建议？请告诉我们。</p>
+    <form id="feedbackForm">
+      <select id="fbType" name="type" required style="width:100%;background:var(--bg-elevated);border:1px solid rgba(0,212,255,0.12);border-radius:4px;color:var(--fg);font-family:var(--font-mono);font-size:13px;padding:8px 10px;margin-bottom:12px;box-sizing:border-box;">
+        <option value="" disabled selected>选择反馈类型...</option>
+        <option value="问题反馈">问题反馈 / Bug Report</option>
+        <option value="功能建议">功能建议 / Feature Request</option>
+        <option value="使用咨询">使用咨询 / Question</option>
+        <option value="其他">其他 / Other</option>
+      </select>
+      <textarea id="fbContent" name="content" required minlength="10" maxlength="2000" rows="4" placeholder="请描述你的问题或建议..." style="width:100%;background:var(--bg-elevated);border:1px solid rgba(0,212,255,0.12);border-radius:4px;color:var(--fg);font-family:var(--font-mono);font-size:13px;padding:10px;resize:vertical;margin-bottom:12px;box-sizing:border-box;"></textarea>
+      <input id="fbContact" name="contact_info" type="text" maxlength="200" placeholder="邮箱或微信 (选填)" style="width:100%;background:var(--bg-elevated);border:1px solid rgba(0,212,255,0.12);border-radius:4px;color:var(--fg);font-family:var(--font-mono);font-size:13px;padding:8px 10px;margin-bottom:12px;box-sizing:border-box;">
+      <div style="position:absolute;left:-9999px;" aria-hidden="true">
+        <input name="website" tabindex="-1" autocomplete="off">
+      </div>
+      <label style="display:block;font-size:12px;color:var(--fg-dim);margin-bottom:6px;">截图 (选填)</label>
+      <input id="fbScreenshot" name="screenshot" type="file" accept="image/*" style="font-size:12px;color:var(--fg-dim);margin-bottom:12px;">
+      <div id="captchaRow" style="margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:13px;color:var(--fg);" id="captchaQ"></span>
+        <input id="captchaAns" type="number" placeholder="?" style="width:60px;background:var(--bg-elevated);border:1px solid rgba(0,212,255,0.12);border-radius:4px;color:var(--fg);font-family:var(--font-mono);font-size:13px;padding:6px 8px;box-sizing:border-box;" required>
+      </div>
+      <div id="fbMsg" style="font-size:12px;margin-bottom:12px;display:none;"></div>
+      <button type="submit" id="fbSubmitBtn" style="background:var(--accent);color:#000;padding:10px 24px;border:none;border-radius:4px;font-family:var(--font-mono);font-weight:700;font-size:13px;cursor:pointer;transition:opacity 0.2s;">提交反馈 / Submit</button>
+    </form>
+  </div>
+</div>
+<script>
+(function(){
+  var form = document.getElementById('feedbackForm');
+  var btn = document.getElementById('fbSubmitBtn');
+  var msg = document.getElementById('fbMsg');
+  var captchaQ = document.getElementById('captchaQ');
+  var captchaAns = document.getElementById('captchaAns');
+  var a, b;
+
+  function genCaptcha() {
+    a = Math.floor(Math.random() * 20) + 1;
+    b = Math.floor(Math.random() * 20) + 1;
+    captchaQ.textContent = a + ' + ' + b + ' = ?';
+    captchaAns.value = '';
+  }
+  genCaptcha();
+
+  var cooldownTimer = null;
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var content = document.getElementById('fbContent').value.trim();
+    if (!content) return;
+
+    if (content.length < 10) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = '反馈内容至少需要10个字符。';
+      msg.style.display = 'block';
+      return;
+    }
+
+    if (parseInt(captchaAns.value, 10) !== a + b) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = '验证码错误，请重试。';
+      msg.style.display = 'block';
+      genCaptcha();
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '提交中...';
+    msg.style.display = 'none';
+    var fd = new FormData();
+    fd.append('content', content);
+    fd.append('contact_info', document.getElementById('fbContact').value.trim());
+    fd.append('type', document.getElementById('fbType').value);
+    var ws = form.querySelector('[name="website"]');
+    if (ws) fd.append('website', ws.value);
+    var file = document.getElementById('fbScreenshot').files[0];
+    if (file) fd.append('screenshot', file);
+    fetch('/api/feedback', { method: 'POST', body: fd })
+      .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+      .then(function(res) {
+        if (res.ok) {
+          msg.style.color = 'var(--success)';
+          msg.textContent = '感谢反馈！我们会尽快处理。';
+          msg.style.display = 'block';
+          form.reset();
+          genCaptcha();
+          var sec = 60;
+          btn.textContent = sec + '秒后可再次提交';
+          cooldownTimer = setInterval(function() {
+            sec--;
+            if (sec <= 0) {
+              clearInterval(cooldownTimer);
+              btn.disabled = false;
+              btn.textContent = '提交反馈 / Submit';
+            } else {
+              btn.textContent = sec + '秒后可再次提交';
+            }
+          }, 1000);
+          setTimeout(function() { document.getElementById('feedbackModal').style.display = 'none'; msg.style.display = 'none'; }, 2000);
+        } else {
+          msg.style.color = 'var(--danger)';
+          msg.textContent = res.data.error || '提交失败，请稍后重试。';
+          msg.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = '提交反馈 / Submit';
+          genCaptcha();
+        }
+      })
+      .catch(function() {
+        msg.style.color = 'var(--danger)';
+        msg.textContent = '网络错误，请稍后重试。';
+        msg.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = '提交反馈 / Submit';
+        genCaptcha();
+      });
+  });
+
+  document.querySelectorAll('[onclick*="feedbackModal"]').forEach(function(el) {
+    el.addEventListener('click', function() { genCaptcha(); });
+  });
+})();
+</script>
+<!-- Polsia Analytics --><script>(function(){var slug="flight-forge";if(!slug)return;var vid=localStorage.getItem('polsia_vid');if(!vid){vid='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);});localStorage.setItem('polsia_vid',vid);}new Image().src='https://polsia.com/api/beacon/pixel?s='+encodeURIComponent(slug)+'&v='+encodeURIComponent(vid);})();</script>
+</body>
+</html>

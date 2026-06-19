@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pricing - FlightForge | AI PID Tuning Plans</title>
+  <meta name="description" content="FlightForge pricing — 2 free analyses per month, Pro unlimited $8/mo, or 5-credit pack $9. AI PID tuning for Betaflight.">
+  <link rel="icon" href="https://pub-629428d185ca4960a0a73c850d32294b.r2.dev/generated-images/company_180433/52541d5c-87e1-4ba1-bc01-56b0c8c34128.jpg">
+  <link rel="canonical" href="https://flight-forge.polsia.app/pricing">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0d0f; --bg2: #111318; --bg3: #161b22;
+      --accent: #00d4ff; --accent2: #ff6b35; --accent3: #a8ff3e;
+      --text: #e8edf2; --text2: #8899aa;
+      --border: rgba(0,212,255,0.12);
+      --font-head: 'Syne', sans-serif; --font-mono: 'Space Mono', monospace;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-mono); font-size: 15px; line-height: 1.7; }
+
+    /* NAV */
+    .app-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(13,13,15,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-logo { font-family: var(--font-head); font-weight: 800; font-size: 18px; color: var(--accent); text-decoration: none; }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-link { color: rgba(136,153,170,0.7); text-decoration: none; font-size: 12px; letter-spacing: 0.03em; transition: color 0.2s; }
+    .nav-link:hover { color: var(--accent); }
+    .nav-cta { background: var(--accent); color: #000; padding: 9px 22px; border-radius: 3px; font-weight: 700; font-size: 12px; letter-spacing: 0.05em; text-decoration: none; transition: opacity 0.2s; }
+    .nav-cta:hover { opacity: 0.85; }
+
+    /* PAGE */
+    .page-wrap { padding: 120px 24px 80px; max-width: 1100px; margin: 0 auto; }
+    .page-eyebrow { font-size: 11px; letter-spacing: 0.15em; color: var(--accent); text-transform: uppercase; margin-bottom: 16px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .page-eyebrow::before, .page-eyebrow::after { content: ''; display: block; width: 32px; height: 1px; background: var(--accent); }
+    .page-title { font-family: var(--font-head); font-weight: 800; font-size: clamp(28px, 4vw, 44px); line-height: 1.1; letter-spacing: -1px; text-align: center; margin-bottom: 8px; }
+    .page-sub { font-size: 15px; color: var(--text2); text-align: center; margin-bottom: 56px; max-width: 540px; margin-left: auto; margin-right: auto; }
+
+    /* PRICING GRID */
+    .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 48px; }
+    .plan-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 32px 28px; position: relative; display: flex; flex-direction: column; }
+    .plan-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--accent); }
+    .plan-card.featured { border-color: rgba(255,107,53,0.35); }
+    .plan-card.featured::before { background: var(--accent2); }
+    .plan-popular { position: absolute; top: -10px; right: 16px; background: var(--accent2); color: #000; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 2px; letter-spacing: 0.08em; }
+    .plan-badge { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; padding: 3px 10px; border-radius: 2px; margin-bottom: 16px; }
+    .badge-free { background: rgba(168,255,62,0.12); color: var(--accent3); }
+    .badge-pro { background: rgba(255,107,53,0.12); color: var(--accent2); }
+    .badge-credits { background: rgba(0,212,255,0.1); color: var(--accent); }
+    .plan-name { font-family: var(--font-head); font-weight: 700; font-size: 20px; margin-bottom: 4px; }
+    .plan-name-zh { font-size: 13px; margin-bottom: 12px; }
+    .plan-price { font-family: var(--font-head); font-weight: 800; font-size: 36px; margin-bottom: 2px; }
+    .plan-price .currency { font-size: 20px; color: var(--text2); }
+    .plan-period { font-size: 12px; color: var(--text2); margin-bottom: 20px; }
+    .plan-features { list-style: none; margin-bottom: 28px; flex: 1; }
+    .plan-features li { font-size: 12px; color: var(--text2); padding: 5px 0; display: flex; align-items: flex-start; gap: 8px; }
+    .plan-features li::before { content: '\2192'; color: var(--accent); flex-shrink: 0; }
+    .plan-cta { display: block; text-align: center; padding: 13px 24px; border-radius: 3px; font-family: var(--font-mono); font-weight: 700; font-size: 13px; letter-spacing: 0.04em; text-decoration: none; transition: all 0.2s; }
+    .plan-cta:hover { transform: translateY(-1px); }
+    .cta-primary { background: var(--accent2); color: #000; box-shadow: 0 0 16px rgba(255,107,53,0.2); }
+    .cta-primary:hover { box-shadow: 0 8px 24px rgba(255,107,53,0.3); }
+    .cta-secondary { border: 1px solid rgba(0,212,255,0.25); color: var(--accent); background: rgba(0,212,255,0.06); }
+    .cta-secondary:hover { border-color: var(--accent); background: rgba(0,212,255,0.12); }
+    .cta-outline { border: 1px solid var(--border); color: var(--text2); }
+    .cta-outline:hover { border-color: var(--accent3); color: var(--accent3); }
+
+    /* FAQ */
+    .faq-section { border-top: 1px solid var(--border); padding-top: 48px; max-width: 680px; margin: 0 auto; }
+    .faq-title { font-family: var(--font-head); font-weight: 700; font-size: 20px; margin-bottom: 24px; text-align: center; }
+    .faq-item { border-bottom: 1px solid var(--border); padding: 16px 0; }
+    .faq-q { font-weight: 700; font-size: 13px; color: var(--text); margin-bottom: 6px; cursor: pointer; }
+    .faq-a { font-size: 12px; color: var(--text2); line-height: 1.7; }
+
+    /* TRUST */
+    .trust-row { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; margin-bottom: 48px; }
+    .trust-item { display: inline-flex; align-items: center; gap: 6px; color: var(--text2); font-size: 12px; padding: 6px 14px; background: rgba(255,255,255,0.03); border-radius: 4px; border: 1px solid rgba(255,255,255,0.06); }
+
+    /* FOOTER */
+    .site-footer { padding: 32px 24px; border-top: 1px solid var(--border); }
+    .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+    .footer-logo { font-family: var(--font-head); font-weight: 800; font-size: 16px; color: var(--accent); }
+    .footer-links { display: flex; gap: 20px; }
+    .footer-link { font-size: 12px; color: var(--text2); text-decoration: none; }
+    .footer-link:hover { color: var(--accent); }
+
+    @media (max-width: 768px) {
+      .pricing-grid { grid-template-columns: 1fr; max-width: 380px; margin-left: auto; margin-right: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="app-nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">FlightForge</a>
+    <div class="nav-links">
+      <a href="/analyze" class="nav-link">日志分析 / Analyze</a>
+      <a href="/advisor" class="nav-link">AI顾问 / Advisor</a>
+      <a href="/analyze" class="nav-cta">免费开始 &rarr;</a>
+    </div>
+  </div>
+</nav>
+
+<main class="page-wrap">
+  <div class="page-eyebrow">定价 &middot; PRICING</div>
+  <h1 class="page-title">Free to start. Pro to unlock everything.</h1>
+  <p class="page-sub">每月2次免费分析。需要更多？升级Pro或购买积分。<br>2 free analyses/month. Need more? Go Pro or buy credits.</p>
+
+  <div class="pricing-grid">
+    <!-- FREE -->
+    <div class="plan-card">
+      <span class="plan-badge badge-free">免费 &middot; FREE</span>
+      <h3 class="plan-name">Free Tier</h3>
+      <div class="plan-name-zh" style="color: var(--accent3);">免费版</div>
+      <div class="plan-price" style="color: var(--accent3);"><span class="currency">$</span>0</div>
+      <div class="plan-period">永久免费 &middot; forever</div>
+      <ul class="plan-features">
+        <li>2 BBL analyses per month / 每月2次分析</li>
+        <li>AI Advisor unlimited / AI顾问无限使用</li>
+        <li>FFT spectrum analysis / 频谱分析</li>
+        <li>CLI command generation / CLI命令输出</li>
+        <li>FC connection (BLE/USB)</li>
+        <li>No account required / 无需注册</li>
+      </ul>
+      <a href="/analyze" class="plan-cta cta-outline">免费开始 / Start Free</a>
+    </div>
+
+    <!-- PRO -->
+    <div class="plan-card featured">
+      <div class="plan-popular">POPULAR</div>
+      <span class="plan-badge badge-pro">PRO</span>
+      <h3 class="plan-name">FlightForge Pro</h3>
+      <div class="plan-name-zh" style="color: var(--accent2);">专业版 &middot; 无限分析</div>
+      <div class="plan-price" style="color: var(--accent2);"><span class="currency">$</span>8</div>
+      <div class="plan-period">per month / 每月 &middot; Cancel anytime</div>
+      <ul class="plan-features">
+        <li>Everything in Free / 包含免费版全部功能</li>
+        <li><strong style="color:var(--text);">Unlimited</strong> BBL analyses / 无限分析次数</li>
+        <li>Priority AI Advisor / 优先AI顾问</li>
+        <li>All current &amp; future Pro features</li>
+        <li>Cancel anytime / 随时取消</li>
+        <li>Email support / 邮件支持</li>
+      </ul>
+      <a href="#" class="plan-cta cta-primary" id="proBtn" data-plan="pro">订阅 Pro / Subscribe &rarr;</a>
+    </div>
+
+    <!-- CREDITS -->
+    <div class="plan-card">
+      <span class="plan-badge badge-credits">积分 &middot; CREDITS</span>
+      <h3 class="plan-name">Credit Pack</h3>
+      <div class="plan-name-zh" style="color: var(--accent);">积分包 &middot; 5次分析</div>
+      <div class="plan-price" style="color: var(--accent);"><span class="currency">$</span>9</div>
+      <div class="plan-period">one-time / 一次性 &middot; 5 credits</div>
+      <ul class="plan-features">
+        <li>Everything in Free / 包含免费版全部功能</li>
+        <li>5 analysis credits / 5次分析积分</li>
+        <li>Credits never expire / 积分永不过期</li>
+        <li>Buy multiple packs / 可多次购买</li>
+        <li>No subscription / 无需订阅</li>
+      </ul>
+      <a href="#" class="plan-cta cta-secondary" id="creditsBtn" data-plan="credits">购买积分 / Buy Credits</a>
+    </div>
+  </div>
+
+  <!-- TRUST -->
+  <div class="trust-row">
+    <span class="trust-item">&#128179; Credit / Debit Card</span>
+    <span class="trust-item">&#127822; Alipay / 支付宝</span>
+    <span class="trust-item">&#128172; WeChat Pay / 微信支付</span>
+    <span class="trust-item">&#128274; Stripe Secure</span>
+  </div>
+
+  <!-- FAQ -->
+  <div class="faq-section">
+    <h2 class="faq-title">常见问题 &middot; FAQ</h2>
+
+    <div class="faq-item">
+      <div class="faq-q">What's included in the free tier? / 免费版包含什么？</div>
+      <div class="faq-a">2 BBL analyses per calendar month, unlimited AI Advisor access, FFT spectrum analysis, CLI command generation, and FC connection via BLE/USB. No account needed. 每月2次BBL分析，AI顾问不限次数，无需注册。</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">How does payment work? / 支付怎么处理？</div>
+      <div class="faq-a">Click the Subscribe or Buy button — you'll be taken to a secure Stripe checkout page. We accept credit/debit cards, Alipay, and WeChat Pay. After payment, you'll be redirected back to FlightForge with your credits or Pro access activated. 点击购买按钮后会跳转到Stripe安全支付页面，支持信用卡、支付宝和微信支付。</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">What if my card is declined? / 银行卡被拒怎么办？</div>
+      <div class="faq-a">Stripe will show the error on the checkout page — try a different card or payment method. If you're charged but don't see your credits, email <a href="mailto:flight-forge@polsia.app" style="color:var(--accent)">flight-forge@polsia.app</a> with your email and we'll add them manually. 如果扣款成功但未显示积分，请发邮件联系我们。</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">Can I cancel Pro anytime? / Pro可以随时取消吗？</div>
+      <div class="faq-a">Yes. Cancel through your Stripe billing portal — no questions asked. You keep Pro access until the end of your billing period. 可以，通过Stripe账单页面取消，当前周期内仍可使用。</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">Do credits expire? / 积分会过期吗？</div>
+      <div class="faq-a">No. Credits never expire. Use them whenever you want. 不会，积分永不过期。</div>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <span class="footer-logo">FlightForge</span>
+    <div class="footer-links">
+      <a href="/" class="footer-link">Home</a>
+      <a href="/analyze" class="footer-link">Analyze</a>
+      <a href="/advisor" class="footer-link">AI Advisor</a>
+      <a href="/privacy" class="footer-link">Privacy</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function() {
+  // Stable user ID
+  var uid = localStorage.getItem('ff_user_id');
+  if (!uid) {
+    uid = 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 8);
+    localStorage.setItem('ff_user_id', uid);
+  }
+
+  // Check current usage status and show badge
+  fetch('/api/payments/usage', { headers: { 'x-user-id': uid } })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(status) {
+      if (!status) return;
+      var freeCard = document.querySelector('.plan-card:first-child');
+      if (!freeCard) return;
+      var badge = freeCard.querySelector('.plan-period');
+      if (badge && !status.isSubscriber) {
+        var remaining = Math.max(0, (status.freeLimit || 2) - (status.freeUsed || 0));
+        badge.innerHTML = remaining + '/' + (status.freeLimit || 2) + ' remaining this month &middot; 本月剩余';
+      }
+      // If user is already a subscriber, highlight that
+      if (status.isSubscriber) {
+        var proCard = document.querySelector('.plan-card.featured');
+        if (proCard) {
+          var proBtn = proCard.querySelector('.plan-cta');
+          if (proBtn) { proBtn.textContent = '已订阅 / Active'; proBtn.style.opacity = '0.7'; proBtn.style.pointerEvents = 'none'; }
+        }
+      }
+    })
+    .catch(function() { /* fail silently */ });
+
+  // Checkout flow — call API to get checkout URL, then redirect
+  document.querySelectorAll('.plan-cta[data-plan]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      var plan = btn.getAttribute('data-plan');
+      if (!plan) return;
+
+      btn.style.opacity = '0.5';
+      btn.style.pointerEvents = 'none';
+      var origText = btn.textContent;
+      btn.textContent = '跳转中... / Redirecting...';
+
+      fetch('/api/payments/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': uid },
+        body: JSON.stringify({ plan: plan, uid: uid })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          throw new Error(data.error || 'No checkout URL');
+        }
+      })
+      .catch(function(err) {
+        console.error('[checkout]', err);
+        btn.textContent = origText;
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
+        alert('Checkout failed — please try again. 支付跳转失败，请重试。');
+      });
+    });
+  });
+})();
+</script>
+
+<!-- Polsia Analytics --><script>(function(){var slug="flight-forge";if(!slug)return;var vid=localStorage.getItem('polsia_vid');if(!vid){vid='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);});localStorage.setItem('polsia_vid',vid);}new Image().src='https://polsia.com/api/beacon/pixel?s='+encodeURIComponent(slug)+'&v='+encodeURIComponent(vid);})();</script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<section class="tuning">
+  <div class="tuning-inner">
+    <div class="tuning-text">
+      <h2 class="section-label">AUTO PID TUNING</h2>
+      <h3 class="feature-title">Upload a log.<br>Get a tune.</h3>
+      <p>Drop your blackbox .BBL file. FlightForge's ML engine analyzes gyro noise, step response, and motor behavior across roll, pitch, and yaw. You get optimized PID values, filter settings, and feed-forward gains in seconds.</p>
+      <ul class="feature-list">
+        <li><span class="check">&#10003;</span> Betaflight 4.3 / 4.4 / 4.5+ compatible</li>
+        <li><span class="check">&#10003;</span> F4, F7, H7 flight controllers</li>
+        <li><span class="check">&#10003;</span> From tiny whoops to X-class</li>
+        <li><span class="check">&#10003;</span> Exportable CLI commands</li>
+      </ul>
+    </div>
+    <div class="tuning-viz">
+      <div class="cli-window">
+        <div class="cli-bar">
+          <span class="cli-dot red"></span>
+          <span class="cli-dot yellow"></span>
+          <span class="cli-dot green"></span>
+          <span class="cli-title">FlightForge CLI Output</span>
+        </div>
+        <div class="cli-body">
+          <code>
+<span class="c-comment"># FlightForge Auto-Tune v1.0</span>
+<span class="c-comment"># Analyzed: 2024-flight-003.bbl</span>
+<span class="c-comment"># Drone: 5" Freestyle, F7 FC</span>
+
+<span class="c-cmd">set p_roll</span> = <span class="c-val">48</span>
+<span class="c-cmd">set i_roll</span> = <span class="c-val">85</span>
+<span class="c-cmd">set d_roll</span> = <span class="c-val">32</span>
+<span class="c-cmd">set f_roll</span> = <span class="c-val">120</span>
+<span class="c-cmd">set p_pitch</span> = <span class="c-val">52</span>
+<span class="c-cmd">set i_pitch</span> = <span class="c-val">90</span>
+<span class="c-cmd">set d_pitch</span> = <span class="c-val">35</span>
+
+<span class="c-cmd">set gyro_lowpass_hz</span> = <span class="c-val">275</span>
+<span class="c-cmd">set dterm_lowpass_hz</span> = <span class="c-val">150</span>
+
+<span class="c-success">&#10003; Propwash handling: Excellent</span>
+<span class="c-success">&#10003; Noise floor: Clean</span>
+<span class="c-success">&#10003; Step response: 12ms</span>
+          </code>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

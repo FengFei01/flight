@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Success - FlightForge</title>
+  <link rel="icon" href="https://pub-629428d185ca4960a0a73c850d32294b.r2.dev/generated-images/company_180433/52541d5c-87e1-4ba1-bc01-56b0c8c34128.jpg">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0d0f; --bg2: #111318; --accent: #00d4ff; --accent2: #ff6b35; --accent3: #a8ff3e;
+      --text: #e8edf2; --text2: #8899aa; --border: rgba(0,212,255,0.12);
+      --font-head: 'Syne', sans-serif; --font-mono: 'Space Mono', monospace;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-mono); font-size: 15px; line-height: 1.7; }
+    .app-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(13,13,15,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-logo { font-family: var(--font-head); font-weight: 800; font-size: 18px; color: var(--accent); text-decoration: none; }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-link { color: rgba(136,153,170,0.7); text-decoration: none; font-size: 12px; transition: color 0.2s; }
+    .nav-link:hover { color: var(--accent); }
+    .success-wrap { max-width: 520px; margin: 0 auto; padding: 140px 24px 80px; text-align: center; }
+    .success-icon { font-size: 56px; margin-bottom: 20px; }
+    .success-badge { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; padding: 4px 14px; border-radius: 2px; margin-bottom: 16px; }
+    .badge-pro { background: rgba(255,107,53,0.15); color: var(--accent2); }
+    .badge-ok { background: rgba(168,255,62,0.12); color: var(--accent3); }
+    .badge-warn { background: rgba(255,152,0,0.12); color: #ff9800; }
+    .badge-err { background: rgba(244,67,54,0.12); color: #f44336; }
+    h1 { font-family: var(--font-head); font-weight: 800; font-size: 28px; margin-bottom: 12px; letter-spacing: -0.5px; }
+    .sub { color: var(--text2); font-size: 14px; margin-bottom: 8px; line-height: 1.6; }
+    .dim { color: #556677; font-size: 13px; margin-bottom: 24px; }
+    .btn-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 32px; }
+    .btn-primary { background: var(--accent); color: #000; padding: 13px 28px; border-radius: 3px; font-family: var(--font-mono); font-weight: 700; font-size: 13px; text-decoration: none; transition: all 0.2s; }
+    .btn-primary:hover { background: #33ddff; transform: translateY(-1px); }
+    .btn-secondary { border: 1px solid var(--border); color: var(--text); padding: 13px 28px; border-radius: 3px; font-family: var(--font-mono); font-size: 13px; text-decoration: none; transition: all 0.2s; }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .credit-num { color: var(--accent); font-family: var(--font-head); font-weight: 800; font-size: 32px; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <nav class="app-nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">FlightForge</a>
+      <div class="nav-links">
+        <a href="/analyze" class="nav-link">日志分析 / Analyze</a>
+        <a href="/advisor" class="nav-link">AI顾问 / Advisor</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="success-wrap">
+    <% if (purchaseType === 'error') { %>
+      <div class="success-icon">&#9888;&#65039;</div>
+      <span class="success-badge badge-err">PAYMENT ISSUE</span>
+      <h1>Payment Verification Failed</h1>
+      <p class="sub">We couldn't verify your payment. If you were charged, contact us and we'll add your credits manually.</p>
+      <p class="sub">支付验证失败。如已扣款，请联系我们手动添加积分。</p>
+      <p class="dim">Email: <a href="mailto:flight-forge@polsia.app">flight-forge@polsia.app</a></p>
+
+    <% } else if (purchaseType === 'pending') { %>
+      <div class="success-icon">&#9203;</div>
+      <span class="success-badge badge-warn">PROCESSING</span>
+      <h1>Payment Processing...</h1>
+      <p class="sub">Your payment is being processed. Credits will be available within a few minutes.</p>
+      <p class="sub">支付处理中，积分将在几分钟内到账。</p>
+
+    <% } else if (purchaseType === 'subscription') { %>
+      <div class="success-icon">&#127881;</div>
+      <span class="success-badge badge-pro">PRO ACTIVATED</span>
+      <h1>Welcome to FlightForge Pro!</h1>
+      <p class="sub">Unlimited BBL analysis is now active. Fly, log, analyze — no limits.</p>
+      <p class="sub">无限BBL分析已激活。飞行、记录、分析——无限制。</p>
+      <% if (email) { %>
+        <p class="dim">Receipt sent to <strong style="color:var(--text);"><%= email %></strong></p>
+      <% } %>
+
+    <% } else { %>
+      <div class="success-icon">&#9989;</div>
+      <span class="success-badge badge-ok">PURCHASE COMPLETE</span>
+      <h1>Credits Added!</h1>
+      <p class="sub"><span class="credit-num"><%= creditsAdded %></span> analysis credits added to your account.</p>
+      <p class="sub"><%= creditsAdded %> 次分析积分已添加到您的账户。</p>
+      <p class="dim">Credits never expire. 积分永不过期。</p>
+      <% if (email) { %>
+        <p class="dim">Receipt sent to <strong style="color:var(--text);"><%= email %></strong></p>
+      <% } %>
+    <% } %>
+
+    <div class="btn-row">
+      <a href="/analyze" class="btn-primary">开始分析 / Start Analyzing &rarr;</a>
+      <a href="/" class="btn-secondary">返回首页 / Home</a>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flight Replay - FlightForge</title>
+  <link rel="icon" href="https://pub-629428d185ca4960a0a73c850d32294b.r2.dev/generated-images/company_180433/52541d5c-87e1-4ba1-bc01-56b0c8c34128.jpg">
+  <meta name="description" content="Replay your Betaflight blackbox logs in the browser. Drag and drop a .BBL file, see quad attitude, motor output, and gyro curves in real-time. Free, no upload needed.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://flight-forge.polsia.app/replay">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0d0f; --bg2: #111318; --bg3: #161b22;
+      --accent: #00d4ff; --accent2: #ff6b35; --accent3: #a8ff3e;
+      --text: #e8edf2; --text2: #8899aa; --border: rgba(0,212,255,0.12);
+      --font-head: 'Syne', sans-serif; --font-mono: 'Space Mono', monospace;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: var(--font-mono); font-size: 14px;
+      line-height: 1.6; overflow-x: hidden;
+    }
+    /* Nav */
+    .app-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(13,13,15,0.85); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: 1200px; margin: 0 auto; padding: 0 24px; height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo {
+      font-family: var(--font-head); font-weight: 800; font-size: 18px;
+      color: var(--accent); text-decoration: none;
+    }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-link {
+      color: rgba(136,153,170,0.7); text-decoration: none; font-size: 12px;
+      letter-spacing: 0.03em; transition: color 0.2s;
+    }
+    .nav-link:hover, .nav-link.active { color: var(--accent); }
+    .nav-cta {
+      background: var(--accent); color: #000; padding: 9px 22px; border-radius: 3px;
+      font-weight: 700; font-size: 12px; text-decoration: none; transition: opacity 0.2s;
+    }
+    .nav-cta:hover { opacity: 0.85; }
+
+    /* Main layout */
+    .replay-main {
+      padding: 80px 24px 40px; max-width: 1200px; margin: 0 auto;
+    }
+    .replay-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+    }
+    .replay-title {
+      font-family: var(--font-head); font-weight: 800; font-size: 24px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .replay-title-icon { color: var(--accent); font-size: 20px; }
+    .replay-subtitle { font-size: 12px; color: var(--text2); }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed var(--border); border-radius: 8px;
+      padding: 60px 40px; text-align: center; cursor: pointer;
+      background: var(--bg2); transition: all 0.2s;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--accent); background: rgba(0,212,255,0.04);
+    }
+    .drop-zone-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.6; }
+    .drop-zone h3 {
+      font-family: var(--font-head); font-weight: 700; font-size: 18px; margin-bottom: 8px;
+    }
+    .drop-zone p { font-size: 13px; color: var(--text2); }
+    .drop-zone input[type="file"] { display: none; }
+
+    /* Replay panel */
+    .replay-panel { display: none; }
+    .replay-panel.active { display: block; }
+
+    /* Canvas containers */
+    .viz-row {
+      display: grid; grid-template-columns: 1fr 1.5fr; gap: 16px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 768px) {
+      .viz-row { grid-template-columns: 1fr; }
+    }
+    .viz-box {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 16px; position: relative;
+    }
+    .viz-label {
+      font-size: 10px; letter-spacing: 0.1em; color: var(--accent);
+      text-transform: uppercase; margin-bottom: 8px; font-weight: 700;
+    }
+    .quad-canvas-wrap { width: 100%; aspect-ratio: 1; }
+    .quad-canvas-wrap canvas { width: 100%; height: 100%; display: block; }
+    .curve-canvas-wrap { width: 100%; height: 280px; }
+    .curve-canvas-wrap canvas { width: 100%; height: 100%; display: block; }
+
+    /* Controls */
+    .controls-bar {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 12px 16px; flex-wrap: wrap;
+    }
+    .ctrl-btn {
+      background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.3);
+      color: var(--accent); padding: 8px 16px; border-radius: 4px;
+      font-family: var(--font-mono); font-size: 12px; font-weight: 700;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .ctrl-btn:hover { background: rgba(0,212,255,0.2); }
+    .ctrl-btn.active { background: var(--accent); color: #000; }
+    .progress-wrap {
+      flex: 1; min-width: 120px;
+    }
+    .progress-bar {
+      width: 100%; height: 6px; -webkit-appearance: none; appearance: none;
+      background: var(--bg3); border-radius: 3px; outline: none; cursor: pointer;
+    }
+    .progress-bar::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 14px; height: 14px;
+      border-radius: 50%; background: var(--accent); cursor: pointer;
+    }
+    .progress-bar::-moz-range-thumb {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--accent); border: none; cursor: pointer;
+    }
+    .ctrl-time {
+      font-size: 11px; color: var(--text2); font-family: var(--font-mono);
+      min-width: 100px; text-align: right;
+    }
+    .speed-btns { display: flex; gap: 4px; }
+    .speed-btn {
+      background: none; border: 1px solid var(--border); color: var(--text2);
+      padding: 4px 10px; border-radius: 3px; font-size: 11px;
+      font-family: var(--font-mono); cursor: pointer; transition: all 0.2s;
+    }
+    .speed-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .speed-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+    /* Flight info bar */
+    .flight-info {
+      display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .info-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(0,212,255,0.06); border: 1px solid var(--border);
+      padding: 6px 14px; border-radius: 20px; font-size: 11px; color: var(--text2);
+    }
+    .info-chip .val { color: var(--accent); font-weight: 700; }
+
+    /* Status */
+    .status-msg {
+      text-align: center; padding: 20px; font-size: 13px; color: var(--text2);
+    }
+    .status-msg.error { color: var(--accent2); }
+  </style>
+</head>
+<body>
+
+<nav class="app-nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">FlightForge</a>
+    <div class="nav-links">
+      <a href="/analyze" class="nav-link">日志分析 / Analyze</a>
+      <a href="/replay" class="nav-link active">飞行回放 / Replay</a>
+      <a href="/advisor" class="nav-link">AI顾问 / Advisor</a>
+      <a href="/analyze" class="nav-cta">免费开始 &rarr;</a>
+    </div>
+  </div>
+</nav>
+
+<main class="replay-main">
+  <div class="replay-header">
+    <div>
+      <div class="replay-title">
+        <span class="replay-title-icon">&#9654;</span>
+        Flight Replay <span style="color:var(--accent)">飞行回放</span>
+      </div>
+      <div class="replay-subtitle">拖入 .BBL/.BFL 文件即刻回放 &mdash; 完全本地，不上传任何数据</div>
+    </div>
+  </div>
+
+  <!-- Drop zone -->
+  <div class="drop-zone" id="dropZone">
+    <div class="drop-zone-icon">&#128190;</div>
+    <h3>Drop your BBL/BFL file here</h3>
+    <p>拖放 .bbl 或 .bfl 文件到这里，或点击选择文件<br>
+    All processing happens in your browser &mdash; no data leaves your machine.</p>
+    <input type="file" id="fileInput" accept=".bbl,.bfl,.BBL,.BFL">
+  </div>
+
+  <div id="statusMsg" class="status-msg" style="display:none;"></div>
+
+  <!-- Replay panel (hidden until file loaded) -->
+  <div class="replay-panel" id="replayPanel">
+    <div class="flight-info" id="flightInfo"></div>
+
+    <div class="viz-row">
+      <div class="viz-box">
+        <div class="viz-label">&#128681; Quad Attitude &middot; 姿态视图</div>
+        <div class="quad-canvas-wrap">
+          <canvas id="quadCanvas"></canvas>
+        </div>
+      </div>
+      <div class="viz-box">
+        <div class="viz-label">&#128200; Gyro &amp; Throttle &middot; 曲线图</div>
+        <div class="curve-canvas-wrap">
+          <canvas id="curveCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls-bar">
+      <button class="ctrl-btn" id="playBtn" title="Play/Pause">&#9654; Play</button>
+      <div class="progress-wrap">
+        <input type="range" class="progress-bar" id="progressBar" min="0" max="1000" value="0">
+      </div>
+      <span class="ctrl-time" id="timeDisplay">0:00 / 0:00</span>
+      <div class="speed-btns">
+        <button class="speed-btn" data-speed="0.5">0.5x</button>
+        <button class="speed-btn active" data-speed="1">1x</button>
+        <button class="speed-btn" data-speed="2">2x</button>
+        <button class="speed-btn" data-speed="4">4x</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="/js/flight-replay.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var dropZone = document.getElementById('dropZone');
+  var fileInput = document.getElementById('fileInput');
+  var statusMsg = document.getElementById('statusMsg');
+  var replayPanel = document.getElementById('replayPanel');
+  var playBtn = document.getElementById('playBtn');
+  var progressBar = document.getElementById('progressBar');
+  var timeDisplay = document.getElementById('timeDisplay');
+  var flightInfo = document.getElementById('flightInfo');
+  var replay = null;
+
+  // Drop zone events
+  dropZone.addEventListener('click', function () { fileInput.click(); });
+  dropZone.addEventListener('dragover', function (e) {
+    e.preventDefault(); dropZone.classList.add('dragover');
+  });
+  dropZone.addEventListener('dragleave', function () {
+    dropZone.classList.remove('dragover');
+  });
+  dropZone.addEventListener('drop', function (e) {
+    e.preventDefault(); dropZone.classList.remove('dragover');
+    var file = e.dataTransfer.files[0];
+    if (file) loadFile(file);
+  });
+  fileInput.addEventListener('change', function () {
+    if (fileInput.files[0]) loadFile(fileInput.files[0]);
+  });
+
+  function loadFile(file) {
+    showStatus('解析中... Parsing ' + file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB)');
+    dropZone.style.display = 'none';
+
+    var worker = new Worker('/js/bbl-replay-worker.js');
+    file.arrayBuffer().then(function (buf) {
+      worker.postMessage({ buffer: buf }, [buf]);
+    });
+
+    worker.onmessage = function (e) {
+      worker.terminate();
+      if (!e.data.ok) {
+        showStatus('Error: ' + e.data.error, true);
+        dropZone.style.display = '';
+        return;
+      }
+
+      var result = e.data.data;
+      if (result.frames.count < 10) {
+        showStatus('文件数据不足，无法回放 / Not enough data frames for replay.', true);
+        dropZone.style.display = '';
+        return;
+      }
+
+      hideStatus();
+      replayPanel.classList.add('active');
+
+      // Show flight info
+      flightInfo.innerHTML = [
+        chip('Craft', result.header.craftName),
+        chip('Board', result.header.boardInfo),
+        chip('Frames', result.frames.count.toLocaleString()),
+        chip('Duration', result.frames.durationSec.toFixed(1) + 's'),
+        chip('Sample Rate', Math.round(result.frames.sampleRateHz) + ' Hz')
+      ].join('');
+
+      // Init replay
+      replay = new window.FlightReplay({
+        quadCanvas: document.getElementById('quadCanvas'),
+        curveCanvas: document.getElementById('curveCanvas'),
+        onFrameChange: onFrameChange
+      });
+      replay.loadData(result.frames);
+      replay.play();
+      playBtn.innerHTML = '&#9646;&#9646; Pause';
+    };
+
+    worker.onerror = function () {
+      worker.terminate();
+      showStatus('Worker error while parsing file.', true);
+      dropZone.style.display = '';
+    };
+  }
+
+  function chip(label, val) {
+    return '<span class="info-chip">' + label + ': <span class="val">' + val + '</span></span>';
+  }
+
+  function onFrameChange(frame, total, duration) {
+    var pct = frame / Math.max(1, total - 1);
+    progressBar.value = Math.round(pct * 1000);
+    var currentSec = pct * duration;
+    timeDisplay.textContent = formatTime(currentSec) + ' / ' + formatTime(duration);
+  }
+
+  function formatTime(sec) {
+    var m = Math.floor(sec / 60);
+    var s = Math.floor(sec % 60);
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  // Play/Pause
+  playBtn.addEventListener('click', function () {
+    if (!replay) return;
+    replay.togglePlay();
+    playBtn.innerHTML = replay.playing ? '&#9646;&#9646; Pause' : '&#9654; Play';
+  });
+
+  // Seek
+  progressBar.addEventListener('input', function () {
+    if (!replay) return;
+    replay.seek(progressBar.value / 1000);
+  });
+
+  // Speed buttons
+  document.querySelectorAll('.speed-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.speed-btn').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      if (replay) replay.setSpeed(parseFloat(btn.dataset.speed));
+    });
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', function (e) {
+    if (!replay) return;
+    if (e.code === 'Space') { e.preventDefault(); playBtn.click(); }
+    if (e.code === 'ArrowLeft') { replay.seekFrame(replay.frame - 30); }
+    if (e.code === 'ArrowRight') { replay.seekFrame(replay.frame + 30); }
+  });
+
+  function showStatus(msg, isError) {
+    statusMsg.textContent = msg;
+    statusMsg.className = 'status-msg' + (isError ? ' error' : '');
+    statusMsg.style.display = '';
+  }
+  function hideStatus() { statusMsg.style.display = 'none'; }
+})();
+</script>
+
+<!-- Polsia Analytics --><script>(function(){var slug="flight-forge";if(!slug)return;var vid=localStorage.getItem('polsia_vid');if(!vid){vid='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16)});localStorage.setItem('polsia_vid',vid)}new Image().src='https://polsia.com/api/beacon/pixel?s='+encodeURIComponent(slug)+'&v='+encodeURIComponent(vid)})();</script>
+</body>
+</html>

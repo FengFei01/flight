@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PID Results - FlightForge</title>
+  <link rel="icon" href="https://pub-629428d185ca4960a0a73c850d32294b.r2.dev/generated-images/company_180433/52541d5c-87e1-4ba1-bc01-56b0c8c34128.jpg">
+  <meta name="description" content="FlightForge PID analysis results — optimized P/I/D/FF values, filter recommendations, FFT spectrum analysis, and CLI commands for Betaflight.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta property="og:title" content="PID Analysis Results - FlightForge">
+  <meta property="og:description" content="Optimized PID values, FFT noise spectrum, and ready-to-paste Betaflight CLI commands from your Blackbox log analysis.">
+  <meta property="og:url" content="https://flight-forge.polsia.app/analyze">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://pub-629428d185ca4960a0a73c850d32294b.r2.dev/generated-images/company_180433/86517f03-cf67-473f-baec-62b4ee3236a3.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="PID Analysis Results - FlightForge">
+  <meta name="twitter:description" content="Optimized PID values and CLI commands from Blackbox log analysis.">
+  <meta name="twitter:image" content="https://pub-629428d185ca4960a0a73c850d32294b.r2.dev/generated-images/company_180433/86517f03-cf67-473f-baec-62b4ee3236a3.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <!-- Nav -->
+  <nav class="app-nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">FlightForge</a>
+      <div class="nav-links">
+        <a href="/analyze" class="nav-link">Analyze Another</a>
+        <a href="/advisor" class="nav-link" id="advisorNavLink">AI 顾问</a>
+        <a href="#" class="nav-link" onclick="document.getElementById('feedbackModal').style.display='flex';return false;">反馈</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="app-main">
+    <div class="results-container">
+
+      <!-- Header -->
+      <div class="results-header">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+          <div class="hero-badge">ANALYSIS COMPLETE</div>
+          <div id="usageBadge" style="display:none"></div>
+        </div>
+        <h1>PID Recommendations</h1>
+        <div class="results-meta">
+          <span class="meta-item"><span class="mono">&#128196;</span> <%= fileName %></span>
+          <span class="meta-item"><span class="mono">&#128202;</span> <%= fileSize %> KB</span>
+          <span class="meta-item"><span class="mono">&#9881;</span> <%= analysis.header.firmware %> <%= analysis.header.firmwareVersion %></span>
+          <% if (analysis.header.craftName !== 'Unknown') { %>
+            <span class="meta-item"><span class="mono">&#9992;</span> <%= analysis.header.craftName %></span>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Flight Style Selector -->
+      <div class="style-selector-card">
+        <div class="style-selector-header">
+          <span class="style-selector-label">飞行风格 / Flight Style</span>
+        </div>
+        <div class="style-selector-btns" id="styleSelector">
+          <button type="button" class="style-btn<%= flightStyle === 'freestyle' ? ' style-btn-active' : '' %>" data-style="freestyle">
+            <span class="style-btn-icon">🎯</span>
+            <span class="style-btn-name">Freestyle</span>
+            <span class="style-btn-zh">花飞</span>
+          </button>
+          <button type="button" class="style-btn<%= flightStyle === 'racing' ? ' style-btn-active' : '' %>" data-style="racing">
+            <span class="style-btn-icon">🏁</span>
+            <span class="style-btn-name">Racing</span>
+            <span class="style-btn-zh">竞速</span>
+          </button>
+          <button type="button" class="style-btn<%= flightStyle === 'cinematic' ? ' style-btn-active' : '' %>" data-style="cinematic">
+            <span class="style-btn-icon">🎬</span>
+            <span class="style-btn-name">Cinematic</span>
+            <span class="style-btn-zh">航拍</span>
+          </button>
+          <button type="button" class="style-btn<%= flightStyle === 'longrange' ? ' style-btn-active' : '' %>" data-style="longrange">
+            <span class="style-btn-icon">📡</span>
+            <span class="style-btn-name">Long Range</span>
+            <span class="style-btn-zh">远航</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Flight Score -->
+      <div class="flight-score-card" id="flightScoreCard">
+        <div class="flight-score-ring flight-score-<%= flightScore.tier %>">
+          <span class="flight-score-value" id="flightScoreValue"><%= flightScore.score %></span>
+        </div>
+        <div class="flight-score-info">
+          <div class="flight-score-title">Flight Score / 飞行评分</div>
+          <div class="flight-score-summary" id="flightScoreSummary"><%= flightScore.summary %></div>
+          <div class="flight-score-breakdown" id="flightScoreBreakdown">
+            <span class="fsb-item" title="PID Response Quality">PID <strong><%= flightScore.breakdown.pidResponse %></strong></span>
+            <span class="fsb-item" title="Vibration Level">振动 <strong><%= flightScore.breakdown.vibration %></strong></span>
+            <span class="fsb-item" title="Motor Health">电机 <strong><%= flightScore.breakdown.motorHealth %></strong></span>
+            <span class="fsb-item" title="Filter Effectiveness">滤波 <strong><%= flightScore.breakdown.filterEffectiveness %></strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Assessment Cards -->
+      <div class="assessment-grid" id="assessmentGrid">
+        <% analysis.assessment.forEach(function(item) { %>
+          <div class="assess-card assess-<%= item.status %>">
+            <span class="assess-label"><%= item.label %></span>
+            <span class="assess-value"><%= item.value %></span>
+          </div>
+        <% }); %>
+      </div>
+
+      <!-- PID Table -->
+      <div class="section-card">
+        <h2 class="section-card-title">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#00d4ff" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          Recommended PID Values
+        </h2>
+        <% if (analysis.synthetic) { %>
+          <div class="info-banner">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>Limited frame data extracted. Recommendations are based on header analysis and Betaflight defaults. For best results, ensure your BBL file has complete flight data.</span>
+          </div>
+        <% } %>
+        <div class="pid-table-wrap">
+          <table class="pid-table">
+            <thead>
+              <tr>
+                <th>Axis</th>
+                <th>P</th>
+                <th>I</th>
+                <th>D (Base)</th>
+                <th>FF</th>
+                <th>D_Max</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% ['roll', 'pitch', 'yaw'].forEach(function(axis) { %>
+                <tr>
+                  <td class="axis-name"><%= axis.charAt(0).toUpperCase() + axis.slice(1) %></td>
+                  <% ['p','i','d','f','dMax'].forEach(function(param) {
+                    var recVal = analysis.recommended[axis][param];
+                    // For 'd', use dMin as original if available (BF 4.3+ separate D_Min/D_Max)
+                    var origVal = param === 'd'
+                      ? (analysis.current[axis] && analysis.current[axis].dMin != null ? analysis.current[axis].dMin : (analysis.current[axis] ? analysis.current[axis].d : null))
+                      : (analysis.current[axis] ? analysis.current[axis][param] : null);
+                    var hasOrig = origVal != null;
+                    var changePct = null;
+                    var changeDir = null;
+                    var changeSev = null;
+                    if (hasOrig && origVal !== 0 && recVal !== origVal) {
+                      changePct = Math.round((Math.abs(recVal - origVal) / origVal) * 100);
+                      changeDir = recVal > origVal ? 'up' : 'down';
+                      changeSev = changePct > 15 ? 'large' : 'small';
+                    }
+                  %>
+                    <td>
+                      <div class="pid-cell">
+                        <span class="pid-rec"><%= recVal %></span>
+                        <% if (changePct != null) { %>
+                          <span class="pid-change pid-change-<%= changeSev %>"><%= changeDir === 'up' ? '▲' : '▼' %><%= changePct %>%</span>
+                        <% } %>
+                        <% if (hasOrig) { %>
+                          <span class="pid-old">was <%= origVal %></span>
+                        <% } %>
+                      </div>
+                    </td>
+                  <% }); %>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Per-axis notes -->
+        <% ['roll', 'pitch', 'yaw'].forEach(function(axis) { %>
+          <% if (analysis.recommended[axis].notes && analysis.recommended[axis].notes.length > 0) { %>
+            <div class="axis-notes">
+              <strong><%= axis.charAt(0).toUpperCase() + axis.slice(1) %>:</strong>
+              <%= analysis.recommended[axis].notes.join(' • ') %>
+            </div>
+          <% } %>
+        <% }); %>
+
+        <!-- Chinese tuning effect descriptions -->
+        <% if (tuningNotes && tuningNotes.length > 0) { %>
+          <div class="tuning-notes-section">
+            <h3 class="tuning-notes-title">调参效果说明</h3>
+            <ul class="tuning-notes-list">
+              <% tuningNotes.forEach(function(note) { %>
+                <li class="tuning-note-item"><%= note %></li>
+              <% }); %>
+            </ul>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- BLE Flight Controller PID Reader -->
+      <div class="section-card" id="blePidPanel">
+        <h2 class="section-card-title">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#00d4ff" stroke-width="2"><path d="M6.5 6.5l11 11M12 2v20M17.5 6.5l-11 11"/></svg>
+          Read FC PIDs
+        </h2>
+        <p class="ble-desc">Connect your flight controller via BLE or USB to compare its current PIDs with the AI recommendations above.</p>
+
+        <div class="ble-controls">
+          <div class="ble-status-row">
+            <span id="bleStatusDot" class="ble-dot ble-dot-disconnected"></span>
+            <span id="bleStatus" class="ble-status-text">Not connected</span>
+          </div>
+          <div class="ble-btns">
+            <div id="resFcTransportBtns" class="fc-transport-btns">
+              <button type="button" id="resFcBleBtn" class="btn-ble btn-ble-transport">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 6.5l11 11M12 2v20M17.5 6.5l-11 11"/></svg>
+                BLE
+              </button>
+              <button type="button" id="resFcUsbBtn" class="btn-ble btn-ble-transport btn-usb">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><circle cx="12" cy="14" r="2"/></svg>
+                USB
+              </button>
+              <button type="button" id="resFcScanAllBtn" class="btn-ble btn-ble-transport btn-scan-all" title="Scan all Bluetooth devices">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+                Scan All
+              </button>
+            </div>
+            <button type="button" id="bleConnectBtn" class="btn-ble" style="display:none">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 6.5l11 11M12 2v20M17.5 6.5l-11 11"/></svg>
+              Connect FC
+            </button>
+            <button type="button" id="bleScanAllBtn" class="btn-ble btn-ble-scanall" title="Show all Bluetooth devices (use if your FC doesn't appear)">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Scan All
+            </button>
+            <button type="button" id="bleDisconnectBtn" class="btn-ble btn-ble-disconnect" style="display:none">Disconnect</button>
+            <button type="button" id="bleRefreshBtn" class="btn-ble btn-ble-refresh" style="display:none">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+              Refresh
+            </button>
+            <button type="button" id="bleApplyBtn" class="btn-ble btn-ble-apply" style="display:none">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
+              Apply to FC
+            </button>
+            <button type="button" id="bleRestoreBtn" class="btn-ble btn-ble-restore" style="display:none">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+              Restore Original
+            </button>
+          </div>
+        </div>
+
+        <div id="bleWriteStatus" class="ble-write-status" style="display:none"></div>
+
+        <!-- PID Comparison (hidden until FC connected) -->
+        <div id="pidComparisonSection" style="display:none"
+             data-recommended="<%- JSON.stringify(analysis.recommended).replace(/\"/g, '&quot;') %>">
+          <h3 class="cmp-subtitle">Current FC PIDs vs AI Recommended</h3>
+          <div class="pid-table-wrap">
+            <table class="pid-table pid-cmp-table">
+              <thead>
+                <tr>
+                  <th>Axis</th>
+                  <th>P</th>
+                  <th>I</th>
+                  <th>D (Base)</th>
+                  <th>FF</th>
+                  <th>D_Max</th>
+                </tr>
+              </thead>
+              <tbody id="pidComparisonBody"></tbody>
+            </table>
+          </div>
+          <div id="pidTuningNotesLive" class="tuning-notes-section" style="display:none">
+            <h3 class="tuning-notes-title">调参效果说明 (实际对比)</h3>
+            <ul id="pidTuningNotesBody" class="tuning-notes-list"></ul>
+          </div>
+          <div class="cmp-legend">
+            <span class="cmp-legend-item"><span class="pid-fc-val">42</span> = FC current</span>
+            <span class="cmp-legend-item"><span class="pid-rec-val pid-diff-up">48 <small>(+6)</small></span> = AI recommended (higher)</span>
+            <span class="cmp-legend-item"><span class="pid-rec-val pid-diff-down">38 <small>(-4)</small></span> = AI recommended (lower)</span>
+          </div>
+        </div>
+
+        <!-- Rates Section (hidden until read) -->
+        <div id="ratesSection" style="display:none">
+          <h3 class="cmp-subtitle">Current FC Rates</h3>
+          <div class="pid-table-wrap">
+            <table class="pid-table">
+              <thead>
+                <tr>
+                  <th>Axis</th>
+                  <th>RC Rate</th>
+                  <th>Rate</th>
+                  <th>Expo</th>
+                </tr>
+              </thead>
+              <tbody id="ratesBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- FFT Spectrum Analysis -->
+      <div class="section-card" id="fftAnalysisSection" style="display:none">
+        <h2 class="section-card-title">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#00d4ff" stroke-width="2"><path d="M2 12h4l3-9 6 18 3-9h4"/></svg>
+          🔍 滤波分析
+        </h2>
+        <p class="fft-desc">基于 Blackbox 陀螺仪数据的频谱分析，自动检测电机谐振和噪声源。</p>
+
+        <!-- Hidden data carrier for gyro frames + looptime -->
+        <div id="fftGyroData" style="display:none"
+             data-gyro="<%- JSON.stringify(gyroFrames).replace(/\"/g, '&quot;') %>"
+             data-looptime="<%= analysis.header.looptime %>"
+             data-effective-samplerate="<%= effectiveSampleRate %>"
+             data-file-name="<%= fileName %>"></div>
+
+        <!-- No data fallback -->
+        <div class="fft-no-data info-banner" style="display:none">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>陀螺仪数据不足，无法生成频谱分析。请确保 Blackbox 日志包含完整飞行数据。</span>
+        </div>
+
+        <!-- Axis toggle buttons -->
+        <div class="fft-controls">
+          <div class="fft-axis-btns">
+            <button type="button" class="fft-axis-toggle fft-toggle-roll" data-axis="roll">
+              <span class="fft-toggle-dot" style="background:#f44336"></span> Roll
+            </button>
+            <button type="button" class="fft-axis-toggle fft-toggle-pitch" data-axis="pitch">
+              <span class="fft-toggle-dot" style="background:#4caf50"></span> Pitch
+            </button>
+            <button type="button" class="fft-axis-toggle fft-toggle-yaw" data-axis="yaw">
+              <span class="fft-toggle-dot" style="background:#2196f3"></span> Yaw
+            </button>
+          </div>
+          <div class="fft-control-right">
+            <span id="fftSampleInfo" class="fft-sample-info"></span>
+            <button type="button" id="fftResetZoom" class="btn-ble fft-reset-btn">重置缩放</button>
+          </div>
+        </div>
+
+        <!-- Chart canvas -->
+        <div class="fft-chart-wrap">
+          <canvas id="fftCanvas"></canvas>
+        </div>
+
+        <!-- Peak Detection Results (merged ±5Hz, top 3 per axis) -->
+        <div class="fft-peaks-section">
+          <h3 class="fft-peaks-title">📡 谐振峰检测结果</h3>
+          <div class="pid-table-wrap">
+            <table class="pid-table fft-peaks-table">
+              <thead>
+                <tr>
+                  <th>轴</th>
+                  <th>频率</th>
+                  <th>幅值</th>
+                  <th>突出度</th>
+                  <th>类型</th>
+                </tr>
+              </thead>
+              <tbody id="fftPeaksBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Notch Filter Suggestions (auto-generated from merged peaks) -->
+        <div id="notchSuggestionsSection" class="notch-section" style="display:none">
+          <h3 class="fft-peaks-title">🔧 Notch 滤波器建议</h3>
+          <div class="pid-table-wrap">
+            <table class="pid-table notch-table">
+              <thead>
+                <tr>
+                  <th>轴</th>
+                  <th>Notch #</th>
+                  <th>中心频率</th>
+                  <th>截止频率</th>
+                  <th>Q 值</th>
+                  <th>带宽</th>
+                  <th>原因</th>
+                </tr>
+              </thead>
+              <tbody id="notchSuggestionsBody"></tbody>
+            </table>
+          </div>
+          <ul id="notchNotes" class="tuning-notes-list notch-notes"></ul>
+
+          <div class="notch-actions">
+            <button type="button" id="applyNotchBtn" class="btn-ble btn-ble-apply" style="display:none">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
+              写入 Notch 到飞控
+            </button>
+            <button type="button" id="restoreNotchBtn" class="btn-ble btn-ble-restore" style="display:none">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+              恢复原始滤波器
+            </button>
+          </div>
+          <div id="notchWriteStatus" class="notch-write-status" style="display:none"></div>
+        </div>
+      </div>
+
+      <!-- Throttle Range FFT Analysis -->
+      <div class="section-card" id="throttleRangeSection" style="display:none">
+        <h2 class="section-card-title">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#00d4ff" stroke-width="2"><path d="M4 18V6m5 9V9m5 6V7m5 11V5"/></svg>
+          油门分段分析
+        </h2>
+        <p class="fft-desc">把同一次飞行按油门区间拆开，观察不同油门段的谐振峰如何漂移，并识别更适合动态 Notch 的场景。</p>
+
+        <div id="throttleRangeStatus" class="info-banner" style="display:none">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span id="throttleRangeStatusText"></span>
+        </div>
+
+        <div id="throttleRangeCards" class="throttle-range-grid"></div>
+
+        <div id="throttleRangeSummarySection" class="fft-peaks-section" style="display:none">
+          <h3 class="fft-peaks-title">📊 油门段汇总与 Notch 建议</h3>
+          <div class="pid-table-wrap">
+            <table class="pid-table throttle-summary-table">
+              <thead>
+                <tr>
+                  <th>油门段</th>
+                  <th>样本 / 窗口</th>
+                  <th>Roll</th>
+                  <th>Pitch</th>
+                  <th>Yaw</th>
+                  <th>Notch 建议</th>
+                  <th>备注</th>
+                </tr>
+              </thead>
+              <tbody id="throttleRangeSummaryBody"></tbody>
+            </table>
+          </div>
+          <ul id="throttleRangeNotes" class="tuning-notes-list notch-notes"></ul>
+        </div>
+      </div>
+
+      <!-- Motor Health / 电机健康 -->
+      <div class="section-card">
+        <h2 class="section-card-title">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#00d4ff" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          Motor Health / 电机健康
+        </h2>
+        <% if (!motorHealth) { %>
+          <div class="info-banner">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>频谱数据不足，无法进行电机健康评估。/ Insufficient spectrum data for motor health analysis.</span>
+          </div>
+        <% } else { %>
+          <%
+            var mhTypeLabels = { bearing_wear: 'Bearing Wear / 轴承磨损', imbalance: 'Imbalance / 动不平衡', prop_damage: 'Prop Damage / 桨叶损伤', motor_mismatch: 'Motor Mismatch / 电机不匹配' };
+            var mhTypeSuggestions = {
+              bearing_wear: 'Motor shows signs of bearing wear. Check for unusual noise and consider bearing/motor replacement. / 疑似轴承磨损，建议检查电机是否有异响，必要时更换轴承或电机。',
+              imbalance: 'Imbalance detected. Inspect propeller for nicks/bends, try replacing props. / 存在动平衡问题，检查螺旋桨是否有缺口/弯曲，尝试更换桨叶。',
+              prop_damage: 'Harmonic anomaly — likely prop damage. Replace propeller immediately. / 谐波异常，可能是桨叶损伤，建议立即更换螺旋桨。',
+              motor_mismatch: 'Significant motor mismatch. Check for loose motor screws or mismatched motor batches. / 电机间性能差异较大，检查是否有松动的电机螺丝或不同批次的电机。'
+            };
+            var mhRatingLabels = { healthy: 'Healthy / 健康', warning: 'Warning / 注意', critical: 'Critical / 危险' };
+            var mhRatingClass = { healthy: 'motor-health-score-healthy', warning: 'motor-health-score-warning', critical: 'motor-health-score-critical' };
+            var mhTotalIssues = (motorHealth.issues || []).length;
+          %>
+          <div class="motor-health-grid">
+            <!-- Overall Card -->
+            <div class="motor-health-card motor-health-card-overall<%= motorHealth.overall.rating === 'critical' ? ' motor-health-card-critical' : '' %>">
+              <div class="motor-health-card-title">Overall</div>
+              <div class="motor-health-score <%= mhRatingClass[motorHealth.overall.rating] %>"><%= motorHealth.overall.score %></div>
+              <div class="motor-health-rating motor-health-rating-<%= motorHealth.overall.rating %>"><%= mhRatingLabels[motorHealth.overall.rating] %></div>
+              <% if (mhTotalIssues > 0) { %>
+                <div class="motor-health-detail" style="margin-top:8px"><%= mhTotalIssues %> anomal<%= mhTotalIssues === 1 ? 'y' : 'ies' %> detected / 检测到 <%= mhTotalIssues %> 项异常</div>
+              <% } else { %>
+                <div class="motor-health-ok">No anomalies detected / 未检测到异常</div>
+              <% } %>
+            </div>
+            <!-- Axis Cards -->
+            <% ['roll', 'pitch', 'yaw'].forEach(function(axis) {
+              var axData = motorHealth.axes[axis];
+            %>
+              <div class="motor-health-card<%= axData.rating === 'critical' ? ' motor-health-card-critical' : '' %>">
+                <div class="motor-health-card-title"><%= axis.charAt(0).toUpperCase() + axis.slice(1) %></div>
+                <div class="motor-health-score motor-health-score-axis <%= mhRatingClass[axData.rating] %>"><%= axData.score %></div>
+                <div class="motor-health-rating motor-health-rating-<%= axData.rating %>"><%= mhRatingLabels[axData.rating] %></div>
+                <% if (axData.issues && axData.issues.length > 0) { %>
+                  <ul class="motor-health-issues">
+                    <% axData.issues.forEach(function(issue) { %>
+                      <li class="motor-health-issue motor-health-issue-<%= issue.severity %>">
+                        <span class="motor-health-badge motor-health-badge-<%= issue.severity %>"><%= mhTypeLabels[issue.type] || issue.type %></span>
+                        <div class="motor-health-detail"><%= issue.detail %></div>
+                        <div class="motor-health-suggestion"><%= mhTypeSuggestions[issue.type] || '' %></div>
+                      </li>
+                    <% }); %>
+                  </ul>
+                <% } else { %>
+                  <div class="motor-health-ok">No anomalies detected / 未检测到异常</div>
+                <% } %>
+              </div>
+            <% }); %>
+          </div>
+          <% if (motorHealth.symmetry) { %>
+          <div class="motor-symmetry-section">
+            <div class="motor-symmetry-header">
+              <h3 class="motor-symmetry-title">Motor Consistency / 电机一致性</h3>
+              <div class="motor-health-score motor-health-score-axis <%= mhRatingClass[motorHealth.symmetry.rating] %>"><%= motorHealth.symmetry.score %></div>
+              <div class="motor-health-rating motor-health-rating-<%= motorHealth.symmetry.rating %>"><%= mhRatingLabels[motorHealth.symmetry.rating] %></div>
+            </div>
+            <div class="motor-symmetry-bars">
+              <% ['roll', 'pitch', 'yaw'].forEach(function(axis) {
+                var axData = motorHealth.axes[axis];
+                var isOutlier = motorHealth.symmetry.outliers.indexOf(axis) !== -1;
+              %>
+                <div class="motor-symmetry-bar-row<%= isOutlier ? ' motor-symmetry-outlier' : '' %>">
+                  <span class="motor-symmetry-bar-label"><%= axis.charAt(0).toUpperCase() + axis.slice(1) %></span>
+                  <div class="motor-symmetry-bar-track">
+                    <div class="motor-symmetry-bar-fill motor-symmetry-bar-<%= axData.rating %>" style="width: <%= axData.score %>%"></div>
+                  </div>
+                  <span class="motor-symmetry-bar-score <%= mhRatingClass[axData.rating] %>"><%= axData.score %></span>
+                  <% if (isOutlier) { %>
+                    <span class="motor-symmetry-flag">&#9888; 疑似问题 / Suspect</span>
+                  <% } %>
+                </div>
+              <% }); %>
+            </div>
+            <div class="motor-symmetry-diagnosis motor-symmetry-diagnosis-<%= motorHealth.symmetry.diagnosis.type %>">
+              <%= motorHealth.symmetry.diagnosis.message %>
+            </div>
+          </div>
+          <% } %>
+          <div id="motorHealthData" style="display:none"
+               data-motor-health="<%- JSON.stringify(motorHealth).replace(/\"/g, '&quot;') %>"
+               data-firmware="<%= analysis.header.firmware %> <%= analysis.header.firmwareVersion %>"
+               data-craft-name="<%= analysis.header.craftName %>"
+               data-file-name="<%= fileName %>">
+          </div>
+        <% } %>
+      </div>
+
+      <!-- Motor Health History / 电机健康趋势 -->
+      <div class="section-card" id="motorHistorySection" style="display:none">
+        <h2 class="section-card-title mh-history-toggle" style="cursor:pointer">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#00d4ff" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          History Trend / 历史趋势
+          <span class="mh-toggle-arrow">&#9654;</span>
+        </h2>
+        <div id="motorHistoryBody" class="mh-history-body" style="display:none">
+          <div id="motorHistoryWarnings"></div>
+          <div class="mh-chart-wrap">
+            <canvas id="motorHistoryChart"></canvas>
+          </div>
+          <div class="mh-history-actions">
+            <button type="button" id="exportReportBtn" class="btn-ble">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export Report / 导出报告
+            </button>
+            <button type="button" id="clearHistoryBtn" class="btn-ble btn-ble-disconnect" style="font-size:0.75rem">
+              Clear History / 清除历史
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter Recommendations -->
+      <div class="section-card">
+        <h2 class="section-card-title">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#00d4ff" stroke-width="2"><path d="M4 16 Q8 8 12 16 Q16 24 20 16"/><line x1="2" y1="22" x2="22" y2="22"/></svg>
+          Filter Settings
+        </h2>
+        <div class="filter-grid">
+          <div class="filter-item">
+            <span class="filter-label">Gyro Lowpass</span>
+            <span class="filter-value"><%= analysis.filters.gyro_lowpass_hz %> Hz</span>
+            <% if (analysis.filters.currentGyro && analysis.filters.currentGyro.lowpass) { %>
+              <span class="filter-old">was <%= analysis.filters.currentGyro.lowpass %> Hz</span>
+            <% } %>
+          </div>
+          <div class="filter-item">
+            <span class="filter-label">D-term Lowpass</span>
+            <span class="filter-value"><%= analysis.filters.dterm_lowpass_hz %> Hz</span>
+            <% if (analysis.filters.currentDterm && analysis.filters.currentDterm.lowpass) { %>
+              <span class="filter-old">was <%= analysis.filters.currentDterm.lowpass %> Hz</span>
+            <% } %>
+          </div>
+        </div>
+        <p class="filter-note"><%= analysis.filters.notes %></p>
+      </div>
+
+      <!-- CLI Commands -->
+      <div class="section-card">
+        <h2 class="section-card-title">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#00d4ff" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          CLI Commands
+          <select id="bfVersionSelect" class="bf-version-select">
+            <option value="4.2"<%= detectedBfVersion === '4.2' ? ' selected' : '' %>>BF 4.2</option>
+            <option value="4.3"<%= detectedBfVersion === '4.3' ? ' selected' : '' %>>BF 4.3</option>
+            <option value="4.4"<%= detectedBfVersion === '4.4' ? ' selected' : '' %>>BF 4.4</option>
+            <option value="4.5"<%= detectedBfVersion === '4.5' ? ' selected' : '' %>>BF 4.5</option>
+          </select>
+          <button id="copyBtn" class="copy-btn" title="Copy to clipboard">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            <span>Copy</span>
+          </button>
+        </h2>
+        <p class="cli-hint">选择你的 Betaflight 版本以生成兼容的 CLI 命令。</p>
+        <div class="cli-window">
+          <div class="cli-bar">
+            <span class="cli-dot red"></span>
+            <span class="cli-dot yellow"></span>
+            <span class="cli-dot green"></span>
+            <span class="cli-title">Betaflight CLI</span>
+          </div>
+          <div class="cli-body">
+            <code id="cliOutput"><%= cliCommands %></code>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLI Export (diff-only, collapsible) -->
+      <div class="section-card cli-export-section">
+        <h2 class="section-card-title cli-export-toggle" id="cliExportToggle" style="cursor:pointer">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#00d4ff" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          Betaflight CLI Export
+          <span class="cli-export-badge" id="cliExportBadge"><%= cliExport ? '有变更' : '无变更' %></span>
+          <span class="cli-export-arrow" id="cliExportArrow">&#9654;</span>
+        </h2>
+        <div class="cli-export-body" id="cliExportBody" style="display:none">
+          <% if (cliExport) { %>
+            <p class="cli-export-hint">仅包含与当前值不同的参数，可直接粘贴到 Betaflight CLI。</p>
+            <div class="cli-export-window">
+              <div class="cli-bar">
+                <span class="cli-dot red"></span>
+                <span class="cli-dot yellow"></span>
+                <span class="cli-dot green"></span>
+                <span class="cli-title">Changes Only</span>
+                <button type="button" id="cliExportCopyBtn" class="copy-btn cli-export-copy">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  <span>Copy</span>
+                </button>
+              </div>
+              <pre class="cli-export-pre"><code id="cliExportOutput"><%= cliExport %></code></pre>
+            </div>
+          <% } else { %>
+            <div class="cli-export-nochange">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#a8ff3e" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>No changes recommended — 当前 PID 已经是推荐值。</span>
+            </div>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- AI Advisor CTA -->
+      <div class="advisor-cta-card">
+        <div class="advisor-cta-inner">
+          <div class="advisor-cta-icon">🤖</div>
+          <div class="advisor-cta-text">
+            <div class="advisor-cta-title">有问题？问 AI 顾问</div>
+            <div class="advisor-cta-desc">AI 会基于你的实际 PID、FFT 频谱、电机健康和飞行评分给出针对性建议</div>
+          </div>
+          <a href="/advisor" class="btn-primary advisor-cta-btn" id="advisorCtaBtn" style="margin-top:0">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            Ask AI Advisor
+          </a>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="results-actions">
+        <a href="/analyze" class="btn-secondary">Analyze Another Log</a>
+      </div>
+    </div>
+  </main>
+
+  <!-- PID Write Confirmation Modal -->
+  <div id="pidConfirmModal" class="pid-confirm-overlay" style="display:none">
+    <div class="pid-confirm-card">
+      <h3 class="pid-confirm-title">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent-warm)" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Confirm PID Write
+      </h3>
+      <p class="pid-confirm-desc">The following values will be written to your flight controller and saved to EEPROM:</p>
+      <div id="pidConfirmBody" class="pid-confirm-body"></div>
+      <div class="pid-confirm-actions">
+        <button type="button" id="pidConfirmNo" class="btn-ble btn-ble-disconnect">Cancel</button>
+        <button type="button" id="pidConfirmYes" class="btn-ble btn-ble-apply">Write to FC</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Expose analysis data for AI advisor context injection + style switching -->
+  <script>
+    window._ffAdvisorContext = {
+      currentPIDs: <%- JSON.stringify(analysis.current) %>,
+      recommendedPIDs: <%- JSON.stringify(analysis.recommended) %>,
+      firmware: '<%= analysis.header.firmware %> <%= analysis.header.firmwareVersion %>',
+      craftName: '<%= analysis.header.craftName %>',
+      fftPeaks: [], // populated by fft-chart.js after analysis
+      filters: { gyro_lowpass_hz: <%= analysis.filters.gyro_lowpass_hz %>, dterm_lowpass_hz: <%= analysis.filters.dterm_lowpass_hz %> },
+      flightStyle: '<%= flightStyle %>',
+      flightScore: <%- JSON.stringify(flightScore) %>,
+      motorHealth: <%- JSON.stringify(motorHealth ? { overall: motorHealth.overall, axes: { roll: { score: motorHealth.axes.roll.score, rating: motorHealth.axes.roll.rating }, pitch: { score: motorHealth.axes.pitch.score, rating: motorHealth.axes.pitch.rating }, yaw: { score: motorHealth.axes.yaw.score, rating: motorHealth.axes.yaw.rating } }, issueCount: (motorHealth.issues || []).length } : null) %>
+    };
+    window._ffCliData = {
+      recommended: <%- JSON.stringify(analysis.recommended) %>,
+      filters: { gyro_lowpass_hz: <%= analysis.filters.gyro_lowpass_hz %>, dterm_lowpass_hz: <%= analysis.filters.dterm_lowpass_hz %> },
+      header: { firmware: '<%= analysis.header.firmware %>', firmwareVersion: '<%= analysis.header.firmwareVersion %>', craftName: '<%= analysis.header.craftName %>' }
+    };
+    // Base analysis for client-side style switching
+    window._ffBaseAnalysis = <%- JSON.stringify(baseAnalysis) %>;
+    window._ffMotorHealth = <%- JSON.stringify(motorHealth) %>;
+    window._ffDetectedBfVersion = '<%= detectedBfVersion %>';
+    window._ffCurrentStyle = '<%= flightStyle %>';
+  </script>
+
+  <!-- Chart.js + plugins for FFT spectrum visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+  <script src="/js/motor-health-history.js"></script>
+  <script src="/js/analysis-cache.js"></script>
+  <script src="/js/bbl-parser-client.js"></script>
+  <script src="/js/fft.js"></script>
+  <script src="/js/spectrum-analyzer.js"></script>
+  <script src="/js/fft-chart.js"></script>
+
+  <script src="/js/bf-version-map.js"></script>
+  <script src="/js/fc-transport.js"></script>
+  <script src="/js/msp-client.js"></script>
+  <script src="/js/fc-connection-manager.js"></script>
+  <script src="/js/fc-pid-reader.js"></script>
+  <script src="/js/fc-notch-writer.js"></script>
+  <script>
+    // Auto-save analysis context to sessionStorage for advisor page
+    function saveAdvisorContext() {
+      try {
+        sessionStorage.setItem('ff_advisor_context', JSON.stringify(window._ffAdvisorContext || {}));
+      } catch (_) {}
+    }
+    saveAdvisorContext(); // save immediately on page load
+
+    var versionSelect = document.getElementById('bfVersionSelect');
+    if (versionSelect) {
+      versionSelect.addEventListener('change', function() {
+        var bfVer = versionSelect.value;
+        var data = window._ffCliData;
+        if (data && typeof BfVersionMap !== 'undefined') {
+          var newCli = BfVersionMap.generateCLIFromAnalysis(data, bfVer);
+          document.getElementById('cliOutput').textContent = newCli;
+          // Also update diff-only CLI export
+          var diffData = { recommended: data.recommended, current: window._ffAdvisorContext.currentPIDs, filters: data.filters, header: data.header };
+          var newDiff = BfVersionMap.generateDiffCLI(diffData, bfVer);
+          var cliExportOut = document.getElementById('cliExportOutput');
+          var badge = document.getElementById('cliExportBadge');
+          if (cliExportOut) cliExportOut.textContent = newDiff || '';
+          if (badge) badge.textContent = newDiff ? '有变更' : '无变更';
+        }
+      });
+    }
+
+    document.getElementById('copyBtn').addEventListener('click', function() {
+      var text = document.getElementById('cliOutput').textContent;
+      navigator.clipboard.writeText(text).then(function() {
+        var btn = document.getElementById('copyBtn');
+        btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#00e676" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> <span>Copied!</span>';
+        setTimeout(function() {
+          btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> <span>Copy</span>';
+        }, 2000);
+      });
+    });
+
+    // CLI Export panel toggle + copy
+    (function() {
+      var toggle = document.getElementById('cliExportToggle');
+      var body = document.getElementById('cliExportBody');
+      var arrow = document.getElementById('cliExportArrow');
+      if (!toggle || !body) return;
+
+      toggle.addEventListener('click', function() {
+        var open = body.style.display !== 'none';
+        body.style.display = open ? 'none' : 'block';
+        arrow.classList.toggle('open', !open);
+      });
+
+      var copyBtn = document.getElementById('cliExportCopyBtn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var code = document.getElementById('cliExportOutput');
+          if (!code) return;
+          navigator.clipboard.writeText(code.textContent).then(function() {
+            copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#00e676" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> <span>Copied! ✓</span>';
+            setTimeout(function() {
+              copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> <span>Copy</span>';
+            }, 2000);
+          });
+        });
+      }
+    })();
+  </script>
+<!-- Feedback Modal -->
+<div id="feedbackModal" style="display:none; position:fixed; inset:0; z-index:200; background:rgba(10,14,23,0.88); backdrop-filter:blur(8px); align-items:center; justify-content:center;">
+  <div style="background:var(--bg-card); border:1px solid rgba(0,212,255,0.12); border-radius:var(--radius-sm); padding:32px; max-width:480px; width:90%; position:relative;">
+    <button onclick="document.getElementById('feedbackModal').style.display='none'" style="position:absolute;top:12px;right:16px;background:none;border:none;color:var(--fg-muted);font-size:20px;cursor:pointer;">&times;</button>
+    <h3 style="font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:4px;">反馈 / Feedback</h3>
+    <p style="font-size:12px;color:var(--fg-dim);margin-bottom:20px;">遇到问题或有建议？请告诉我们。</p>
+    <form id="feedbackForm">
+      <select id="fbType" name="type" required style="width:100%;background:var(--bg-elevated);border:1px solid rgba(0,212,255,0.12);border-radius:4px;color:var(--fg);font-family:var(--font-mono);font-size:13px;padding:8px 10px;margin-bottom:12px;box-sizing:border-box;">
+        <option value="" disabled selected>选择反馈类型...</option>
+        <option value="问题反馈">问题反馈 / Bug Report</option>
+        <option value="功能建议">功能建议 / Feature Request</option>
+        <option value="使用咨询">使用咨询 / Question</option>
+        <option value="其他">其他 / Other</option>
+      </select>
+      <textarea id="fbContent" name="content" required minlength="10" maxlength="2000" rows="4" placeholder="请描述你的问题或建议..." style="width:100%;background:var(--bg-elevated);border:1px solid rgba(0,212,255,0.12);border-radius:4px;color:var(--fg);font-family:var(--font-mono);font-size:13px;padding:10px;resize:vertical;margin-bottom:12px;box-sizing:border-box;"></textarea>
+      <input id="fbContact" name="contact_info" type="text" maxlength="200" placeholder="邮箱或微信 (选填)" style="width:100%;background:var(--bg-elevated);border:1px solid rgba(0,212,255,0.12);border-radius:4px;color:var(--fg);font-family:var(--font-mono);font-size:13px;padding:8px 10px;margin-bottom:12px;box-sizing:border-box;">
+      <div style="position:absolute;left:-9999px;" aria-hidden="true">
+        <input name="website" tabindex="-1" autocomplete="off">
+      </div>
+      <label style="display:block;font-size:12px;color:var(--fg-dim);margin-bottom:6px;">截图 (选填)</label>
+      <input id="fbScreenshot" name="screenshot" type="file" accept="image/*" style="font-size:12px;color:var(--fg-dim);margin-bottom:12px;">
+      <div id="captchaRow" style="margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:13px;color:var(--fg);" id="captchaQ"></span>
+        <input id="captchaAns" type="number" placeholder="?" style="width:60px;background:var(--bg-elevated);border:1px solid rgba(0,212,255,0.12);border-radius:4px;color:var(--fg);font-family:var(--font-mono);font-size:13px;padding:6px 8px;box-sizing:border-box;" required>
+      </div>
+      <div id="fbMsg" style="font-size:12px;margin-bottom:12px;display:none;"></div>
+      <button type="submit" id="fbSubmitBtn" style="background:var(--accent);color:#000;padding:10px 24px;border:none;border-radius:4px;font-family:var(--font-mono);font-weight:700;font-size:13px;cursor:pointer;transition:opacity 0.2s;">提交反馈 / Submit</button>
+    </form>
+  </div>
+</div>
+<script>
+(function(){
+  var form = document.getElementById('feedbackForm');
+  var btn = document.getElementById('fbSubmitBtn');
+  var msg = document.getElementById('fbMsg');
+  var captchaQ = document.getElementById('captchaQ');
+  var captchaAns = document.getElementById('captchaAns');
+  var a, b;
+
+  function genCaptcha() {
+    a = Math.floor(Math.random() * 20) + 1;
+    b = Math.floor(Math.random() * 20) + 1;
+    captchaQ.textContent = a + ' + ' + b + ' = ?';
+    captchaAns.value = '';
+  }
+  genCaptcha();
+
+  var cooldownTimer = null;
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var content = document.getElementById('fbContent').value.trim();
+    if (!content) return;
+
+    if (content.length < 10) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = '反馈内容至少需要10个字符。';
+      msg.style.display = 'block';
+      return;
+    }
+
+    if (parseInt(captchaAns.value, 10) !== a + b) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = '验证码错误，请重试。';
+      msg.style.display = 'block';
+      genCaptcha();
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '提交中...';
+    msg.style.display = 'none';
+    var fd = new FormData();
+    fd.append('content', content);
+    fd.append('contact_info', document.getElementById('fbContact').value.trim());
+    fd.append('type', document.getElementById('fbType').value);
+    var ws = form.querySelector('[name="website"]');
+    if (ws) fd.append('website', ws.value);
+    var file = document.getElementById('fbScreenshot').files[0];
+    if (file) fd.append('screenshot', file);
+    fetch('/api/feedback', { method: 'POST', body: fd })
+      .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+      .then(function(res) {
+        if (res.ok) {
+          msg.style.color = 'var(--success)';
+          msg.textContent = '感谢反馈！我们会尽快处理。';
+          msg.style.display = 'block';
+          form.reset();
+          genCaptcha();
+          var sec = 60;
+          btn.textContent = sec + '秒后可再次提交';
+          cooldownTimer = setInterval(function() {
+            sec--;
+            if (sec <= 0) {
+              clearInterval(cooldownTimer);
+              btn.disabled = false;
+              btn.textContent = '提交反馈 / Submit';
+            } else {
+              btn.textContent = sec + '秒后可再次提交';
+            }
+          }, 1000);
+          setTimeout(function() { document.getElementById('feedbackModal').style.display = 'none'; msg.style.display = 'none'; }, 2000);
+        } else {
+          msg.style.color = 'var(--danger)';
+          msg.textContent = res.data.error || '提交失败，请稍后重试。';
+          msg.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = '提交反馈 / Submit';
+          genCaptcha();
+        }
+      })
+      .catch(function() {
+        msg.style.color = 'var(--danger)';
+        msg.textContent = '网络错误，请稍后重试。';
+        msg.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = '提交反馈 / Submit';
+        genCaptcha();
+      });
+  });
+
+  document.querySelectorAll('[onclick*="feedbackModal"]').forEach(function(el) {
+    el.addEventListener('click', function() { genCaptcha(); });
+  });
+})();
+</script>
+<script>
+// Flight style switching — re-calculates PIDs without re-uploading BBL
+(function() {
+  var selector = document.getElementById('styleSelector');
+  if (!selector) return;
+  var buttons = selector.querySelectorAll('.style-btn');
+  var switching = false;
+
+  buttons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      if (switching) return;
+      var style = btn.getAttribute('data-style');
+      if (style === window._ffCurrentStyle) return;
+
+      switching = true;
+      buttons.forEach(function(b) { b.classList.remove('style-btn-active'); });
+      btn.classList.add('style-btn-active');
+      btn.classList.add('style-btn-loading');
+
+      fetch('/analyze/restyle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          baseAnalysis: window._ffBaseAnalysis,
+          motorHealth: window._ffMotorHealth,
+          style: style,
+          bfVersion: window._ffDetectedBfVersion
+        })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.ok) throw new Error(data.error || 'Restyle failed');
+
+        window._ffCurrentStyle = style;
+        window._ffCliData.recommended = data.analysis.recommended;
+        window._ffCliData.filters = {
+          gyro_lowpass_hz: data.analysis.filters.gyro_lowpass_hz,
+          dterm_lowpass_hz: data.analysis.filters.dterm_lowpass_hz
+        };
+        window._ffAdvisorContext.recommendedPIDs = data.analysis.recommended;
+        window._ffAdvisorContext.filters = window._ffCliData.filters;
+        window._ffAdvisorContext.flightStyle = style;
+        if (data.flightScore) window._ffAdvisorContext.flightScore = data.flightScore;
+        if (typeof saveAdvisorContext === 'function') saveAdvisorContext();
+
+        // Update Flight Score
+        updateFlightScore(data.flightScore);
+        // Update PID table
+        updatePIDTable(data.analysis);
+        // Update tuning notes
+        updateTuningNotes(data.tuningNotes);
+        // Update filter values
+        updateFilters(data.analysis.filters);
+        // Update CLI output
+        updateCLI(data.cliCommands);
+        // Update CLI Export (diff-only)
+        updateCLIExport(data.cliExport);
+        // Update assessment cards
+        updateAssessment(data.analysis.assessment);
+      })
+      .catch(function(err) {
+        console.error('[style-switch] Error:', err);
+      })
+      .finally(function() {
+        switching = false;
+        btn.classList.remove('style-btn-loading');
+      });
+    });
+  });
+
+  function updateFlightScore(fs) {
+    var scoreEl = document.getElementById('flightScoreValue');
+    var summaryEl = document.getElementById('flightScoreSummary');
+    var card = document.getElementById('flightScoreCard');
+    var bdEl = document.getElementById('flightScoreBreakdown');
+    if (scoreEl) scoreEl.textContent = fs.score;
+    if (summaryEl) summaryEl.textContent = fs.summary;
+    if (card) {
+      var ring = card.querySelector('.flight-score-ring');
+      if (ring) {
+        ring.className = 'flight-score-ring flight-score-' + fs.tier;
+      }
+    }
+    if (bdEl) {
+      bdEl.innerHTML =
+        '<span class="fsb-item" title="PID Response Quality">PID <strong>' + fs.breakdown.pidResponse + '</strong></span>' +
+        '<span class="fsb-item" title="Vibration Level">振动 <strong>' + fs.breakdown.vibration + '</strong></span>' +
+        '<span class="fsb-item" title="Motor Health">电机 <strong>' + fs.breakdown.motorHealth + '</strong></span>' +
+        '<span class="fsb-item" title="Filter Effectiveness">滤波 <strong>' + fs.breakdown.filterEffectiveness + '</strong></span>';
+    }
+  }
+
+  function updatePIDTable(analysis) {
+    var tbody = document.querySelector('.pid-table tbody');
+    if (!tbody) return;
+    var axes = ['roll', 'pitch', 'yaw'];
+    var params = ['p', 'i', 'd', 'f', 'dMax'];
+    var rows = tbody.querySelectorAll('tr');
+    axes.forEach(function(axis, idx) {
+      if (!rows[idx]) return;
+      var cells = rows[idx].querySelectorAll('td');
+      params.forEach(function(param, pi) {
+        var cell = cells[pi + 1]; // skip axis name cell
+        if (!cell) return;
+        var rec = analysis.recommended[axis][param];
+        // For 'd', use dMin as original if available
+        var cur = null;
+        if (analysis.current[axis]) {
+          if (param === 'd' && analysis.current[axis].dMin != null) {
+            cur = analysis.current[axis].dMin;
+          } else {
+            cur = analysis.current[axis][param];
+          }
+        }
+        var html = '<div class="pid-cell"><span class="pid-rec">' + rec + '</span>';
+        // Change magnitude label
+        if (cur != null && cur !== 0 && rec !== cur) {
+          var pct = Math.round((Math.abs(rec - cur) / cur) * 100);
+          var dir = rec > cur ? 'up' : 'down';
+          var sev = pct > 15 ? 'large' : 'small';
+          html += '<span class="pid-change pid-change-' + sev + '">' + (dir === 'up' ? '▲' : '▼') + pct + '%</span>';
+        }
+        if (cur != null) html += '<span class="pid-old">was ' + cur + '</span>';
+        html += '</div>';
+        cell.innerHTML = html;
+      });
+    });
+    // Update per-axis notes
+    var noteEls = document.querySelectorAll('.axis-notes');
+    noteEls.forEach(function(el) { el.remove(); });
+    var pidSection = document.querySelector('.section-card .pid-table-wrap');
+    if (pidSection) {
+      axes.forEach(function(axis) {
+        var notes = analysis.recommended[axis].notes;
+        if (notes && notes.length > 0) {
+          var div = document.createElement('div');
+          div.className = 'axis-notes';
+          div.innerHTML = '<strong>' + axis.charAt(0).toUpperCase() + axis.slice(1) + ':</strong> ' + notes.join(' \u2022 ');
+          pidSection.parentNode.insertBefore(div, pidSection.nextSibling);
+        }
+      });
+    }
+  }
+
+  function updateTuningNotes(notes) {
+    var section = document.querySelector('.tuning-notes-section');
+    if (!section) return;
+    var list = section.querySelector('.tuning-notes-list');
+    if (!list) return;
+    if (!notes || notes.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = '';
+    list.innerHTML = notes.map(function(n) {
+      return '<li class="tuning-note-item">' + n + '</li>';
+    }).join('');
+  }
+
+  function updateFilters(filters) {
+    var items = document.querySelectorAll('.filter-item');
+    if (items.length >= 1) {
+      var val = items[0].querySelector('.filter-value');
+      if (val) val.textContent = filters.gyro_lowpass_hz + ' Hz';
+    }
+    if (items.length >= 2) {
+      var val2 = items[1].querySelector('.filter-value');
+      if (val2) val2.textContent = filters.dterm_lowpass_hz + ' Hz';
+    }
+    var noteEl = document.querySelector('.filter-note');
+    if (noteEl && filters.notes) noteEl.textContent = filters.notes;
+  }
+
+  function updateCLI(cli) {
+    var el = document.getElementById('cliOutput');
+    if (el) el.textContent = cli;
+  }
+
+  function updateCLIExport(cliExport) {
+    var body = document.getElementById('cliExportBody');
+    var badge = document.getElementById('cliExportBadge');
+    if (!body) return;
+    if (cliExport) {
+      badge.textContent = '有变更';
+      body.innerHTML =
+        '<p class="cli-export-hint">仅包含与当前值不同的参数，可直接粘贴到 Betaflight CLI。</p>' +
+        '<div class="cli-export-window">' +
+          '<div class="cli-bar">' +
+            '<span class="cli-dot red"></span><span class="cli-dot yellow"></span><span class="cli-dot green"></span>' +
+            '<span class="cli-title">Changes Only</span>' +
+            '<button type="button" id="cliExportCopyBtn" class="copy-btn cli-export-copy">' +
+              '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> <span>Copy</span>' +
+            '</button>' +
+          '</div>' +
+          '<pre class="cli-export-pre"><code id="cliExportOutput">' + cliExport.replace(/</g, '&lt;') + '</code></pre>' +
+        '</div>';
+      // Re-bind copy button
+      var btn = document.getElementById('cliExportCopyBtn');
+      if (btn) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          navigator.clipboard.writeText(cliExport).then(function() {
+            btn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#00e676" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> <span>Copied! \u2713</span>';
+            setTimeout(function() {
+              btn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> <span>Copy</span>';
+            }, 2000);
+          });
+        });
+      }
+    } else {
+      badge.textContent = '无变更';
+      body.innerHTML =
+        '<div class="cli-export-nochange">' +
+          '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#a8ff3e" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>' +
+          '<span>No changes recommended \u2014 当前 PID 已经是推荐值。</span>' +
+        '</div>';
+    }
+  }
+
+  function updateAssessment(assessment) {
+    var grid = document.getElementById('assessmentGrid');
+    if (!grid || !assessment) return;
+    grid.innerHTML = assessment.map(function(item) {
+      return '<div class="assess-card assess-' + item.status + '">' +
+        '<span class="assess-label">' + item.label + '</span>' +
+        '<span class="assess-value">' + item.value + '</span></div>';
+    }).join('');
+  }
+})();
+</script>
+<style>.usage-badge{font-size:11px;font-weight:600;padding:4px 12px;border-radius:20px;letter-spacing:.03em;font-family:'Space Mono',monospace}.usage-badge-free{background:rgba(168,255,62,.1);color:#a8ff3e}</style>
+<script src="/js/usage-tracker.js"></script>
+<!-- Polsia Analytics --><script>(function(){var slug="flight-forge";if(!slug)return;var vid=localStorage.getItem('polsia_vid');if(!vid){vid='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);});localStorage.setItem('polsia_vid',vid);}new Image().src='https://polsia.com/api/beacon/pixel?s='+encodeURIComponent(slug)+'&v='+encodeURIComponent(vid);})();</script>
+</body>
+</html>

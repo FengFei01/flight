@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Feedback Dashboard - FlightForge Admin</title>
+  <link rel="icon" href="https://pub-629428d185ca4960a0a73c850d32294b.r2.dev/generated-images/company_180433/52541d5c-87e1-4ba1-bc01-56b0c8c34128.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <!-- Nav -->
+  <nav class="admin-nav">
+    <div class="admin-nav-inner">
+      <a href="/" class="nav-logo">FlightForge</a>
+      <span class="admin-badge">ADMIN</span>
+      <a href="/admin/feedback/logout" class="admin-logout">Logout</a>
+    </div>
+  </nav>
+
+  <main class="admin-main">
+    <div class="admin-container">
+      <h1 class="admin-title">Feedback Dashboard</h1>
+
+      <!-- Status Cards -->
+      <div class="stat-cards">
+        <div class="stat-card stat-new" data-status="new">
+          <span class="stat-card-num"><%= counts.new %></span>
+          <span class="stat-card-label">New</span>
+        </div>
+        <div class="stat-card stat-progress" data-status="in_progress">
+          <span class="stat-card-num"><%= counts.in_progress %></span>
+          <span class="stat-card-label">In Progress</span>
+        </div>
+        <div class="stat-card stat-resolved" data-status="resolved">
+          <span class="stat-card-num"><%= counts.resolved %></span>
+          <span class="stat-card-label">Resolved</span>
+        </div>
+        <div class="stat-card stat-ignored" data-status="ignored">
+          <span class="stat-card-num"><%= counts.ignored %></span>
+          <span class="stat-card-label">Ignored</span>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls-row">
+        <div class="tab-bar">
+          <button class="tab active" data-status="all">All</button>
+          <button class="tab" data-status="new">New</button>
+          <button class="tab" data-status="in_progress">In Progress</button>
+          <button class="tab" data-status="resolved">Resolved</button>
+          <button class="tab" data-status="ignored">Ignored</button>
+        </div>
+        <div class="controls-right">
+          <input type="text" id="searchBox" class="search-input" placeholder="Search feedback...">
+          <button id="sortToggle" class="sort-btn" title="Toggle sort order">
+            <span class="sort-icon">↓</span> Newest
+          </button>
+        </div>
+      </div>
+
+      <!-- Bulk actions -->
+      <div class="bulk-bar" id="bulkBar" style="display:none">
+        <span class="bulk-count"><span id="bulkCount">0</span> selected</span>
+        <select id="bulkStatus" class="bulk-select">
+          <option value="">Mark as...</option>
+          <option value="new">New</option>
+          <option value="in_progress">In Progress</option>
+          <option value="resolved">Resolved</option>
+          <option value="ignored">Ignored</option>
+        </select>
+        <button id="bulkApply" class="bulk-apply-btn">Apply</button>
+        <button id="bulkClear" class="bulk-clear-btn">Clear</button>
+      </div>
+
+      <!-- Feedback list -->
+      <div id="feedbackList" class="feedback-list">
+        <div class="loading-indicator">Loading...</div>
+      </div>
+
+      <!-- Pagination -->
+      <div id="pagination" class="pagination"></div>
+    </div>
+  </main>
+
+  <!-- Detail panel (slide-out) -->
+  <div id="detailOverlay" class="detail-overlay" style="display:none">
+    <div class="detail-panel">
+      <div class="detail-header">
+        <h2>Feedback Detail</h2>
+        <button class="detail-close" id="detailClose">&times;</button>
+      </div>
+      <div id="detailBody" class="detail-body"></div>
+    </div>
+  </div>
+
+  <script>
+  const CSRF = '<%= csrf %>';
+  const API = '/admin/feedback/api';
+
+  let currentStatus = 'all';
+  let currentSearch = '';
+  let currentPage = 1;
+  let currentSort = 'desc';
+  let selectedIds = new Set();
+
+  // --- Load feedback list ---
+  async function loadList() {
+    const params = new URLSearchParams({ status: currentStatus, page: currentPage, sort: currentSort });
+    if (currentSearch) params.set('search', currentSearch);
+    const res = await fetch(`${API}/list?${params}`);
+    const data = await res.json();
+    renderList(data);
+    renderPagination(data);
+    updateBulkBar();
+  }
+
+  function renderList(data) {
+    const el = document.getElementById('feedbackList');
+    if (!data.items.length) {
+      el.innerHTML = '<div class="empty-state">No feedback found</div>';
+      return;
+    }
+    el.innerHTML = data.items.map(item => `
+      <div class="fb-row" data-id="${item.id}">
+        <label class="fb-check"><input type="checkbox" class="fb-checkbox" data-id="${item.id}" ${selectedIds.has(item.id) ? 'checked' : ''}></label>
+        <div class="fb-main" onclick="openDetail(${item.id})">
+          <div class="fb-top">
+            <span class="fb-time">${formatTime(item.created_at)}</span>
+            <span class="fb-type">${item.type || ''}</span>
+            <span class="fb-source">${item.source_page || ''}</span>
+          </div>
+          <div class="fb-content">${truncate(item.content, 120)}</div>
+          <div class="fb-bottom">
+            <span class="fb-status-tag status-${item.status || 'new'}">${statusLabel(item.status)}</span>
+            <span class="fb-priority-tag priority-${item.priority || 'medium'}">${(item.priority || 'medium').toUpperCase()}</span>
+            ${item.contact_info ? `<span class="fb-contact">${item.contact_info}</span>` : ''}
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    // Checkbox events
+    el.querySelectorAll('.fb-checkbox').forEach(cb => {
+      cb.addEventListener('change', (e) => {
+        const id = parseInt(e.target.dataset.id, 10);
+        if (e.target.checked) selectedIds.add(id); else selectedIds.delete(id);
+        updateBulkBar();
+      });
+    });
+  }
+
+  function renderPagination(data) {
+    const el = document.getElementById('pagination');
+    if (data.totalPages <= 1) { el.innerHTML = ''; return; }
+    let html = '';
+    for (let i = 1; i <= data.totalPages; i++) {
+      html += `<button class="page-btn ${i === data.page ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+    }
+    el.innerHTML = `<span class="page-info">Page ${data.page} of ${data.totalPages} (${data.total} total)</span>` + html;
+  }
+
+  // --- Detail panel ---
+  async function openDetail(id) {
+    const res = await fetch(`${API}/${id}`);
+    const item = await res.json();
+    if (item.error) return;
+    const body = document.getElementById('detailBody');
+    body.innerHTML = `
+      <div class="detail-meta">
+        <div class="dm-row"><span class="dm-label">ID</span><span>#${item.id}</span></div>
+        <div class="dm-row"><span class="dm-label">Submitted</span><span>${new Date(item.created_at).toLocaleString()}</span></div>
+        <div class="dm-row"><span class="dm-label">Type</span><span>${item.type || 'N/A'}</span></div>
+        <div class="dm-row"><span class="dm-label">Source</span><span>${item.source_page || 'N/A'}</span></div>
+        <div class="dm-row"><span class="dm-label">Contact</span><span>${item.contact_info || 'N/A'}</span></div>
+        <div class="dm-row"><span class="dm-label">User Agent</span><span class="dm-ua">${item.user_agent ? item.user_agent.substring(0, 80) : 'N/A'}</span></div>
+      </div>
+
+      <div class="detail-section">
+        <h3>Content</h3>
+        <div class="detail-content">${item.content.replace(/\n/g, '<br>')}</div>
+      </div>
+
+      ${item.screenshot_url ? `<div class="detail-section"><h3>Screenshot</h3><img src="${item.screenshot_url}" class="detail-screenshot" alt="screenshot"></div>` : ''}
+
+      <div class="detail-section">
+        <h3>Status</h3>
+        <div class="detail-status-btns">
+          ${['new','in_progress','resolved','ignored'].map(s => `
+            <button class="status-btn status-${s} ${item.status === s ? 'active' : ''}" onclick="setStatus(${item.id},'${s}',this)">
+              ${statusLabel(s)}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h3>Priority</h3>
+        <div class="detail-status-btns">
+          ${['low','medium','high','critical'].map(p => `
+            <button class="priority-btn priority-${p} ${item.priority === p ? 'active' : ''}" onclick="setPriority(${item.id},'${p}',this)">
+              ${p.toUpperCase()}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h3>Admin Notes</h3>
+        <textarea id="adminNotes" class="admin-notes-area" placeholder="Internal notes...">${item.admin_notes || ''}</textarea>
+        <button class="save-notes-btn" onclick="saveNotes(${item.id})">Save Notes</button>
+      </div>
+    `;
+    document.getElementById('detailOverlay').style.display = 'flex';
+  }
+
+  async function setStatus(id, status, btn) {
+    await fetch(`${API}/${id}/status`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ status })
+    });
+    btn.parentElement.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadList();
+  }
+
+  async function setPriority(id, priority, btn) {
+    await fetch(`${API}/${id}/priority`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ priority })
+    });
+    btn.parentElement.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  async function saveNotes(id) {
+    const notes = document.getElementById('adminNotes').value;
+    await fetch(`${API}/${id}/notes`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ notes })
+    });
+    const btn = document.querySelector('.save-notes-btn');
+    btn.textContent = 'Saved!';
+    setTimeout(() => btn.textContent = 'Save Notes', 1500);
+  }
+
+  // --- Bulk ops ---
+  function updateBulkBar() {
+    const bar = document.getElementById('bulkBar');
+    document.getElementById('bulkCount').textContent = selectedIds.size;
+    bar.style.display = selectedIds.size > 0 ? 'flex' : 'none';
+  }
+
+  document.getElementById('bulkApply').addEventListener('click', async () => {
+    const status = document.getElementById('bulkStatus').value;
+    if (!status) return;
+    await fetch(`${API}/bulk-status`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ ids: [...selectedIds], status })
+    });
+    selectedIds.clear();
+    document.getElementById('bulkStatus').value = '';
+    loadList();
+  });
+
+  document.getElementById('bulkClear').addEventListener('click', () => {
+    selectedIds.clear();
+    document.querySelectorAll('.fb-checkbox').forEach(cb => cb.checked = false);
+    updateBulkBar();
+  });
+
+  // --- Tabs ---
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentStatus = tab.dataset.status;
+      currentPage = 1;
+      selectedIds.clear();
+      loadList();
+    });
+  });
+
+  // --- Stat card clicks (filter shortcut) ---
+  document.querySelectorAll('.stat-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const st = card.dataset.status;
+      document.querySelectorAll('.tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.status === st);
+      });
+      currentStatus = st;
+      currentPage = 1;
+      selectedIds.clear();
+      loadList();
+    });
+  });
+
+  // --- Search ---
+  let searchTimer;
+  document.getElementById('searchBox').addEventListener('input', (e) => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      currentSearch = e.target.value.trim();
+      currentPage = 1;
+      loadList();
+    }, 350);
+  });
+
+  // --- Sort toggle ---
+  document.getElementById('sortToggle').addEventListener('click', () => {
+    currentSort = currentSort === 'desc' ? 'asc' : 'desc';
+    const btn = document.getElementById('sortToggle');
+    btn.querySelector('.sort-icon').textContent = currentSort === 'desc' ? '↓' : '↑';
+    btn.childNodes[btn.childNodes.length - 1].textContent = currentSort === 'desc' ? ' Newest' : ' Oldest';
+    loadList();
+  });
+
+  // --- Pagination ---
+  function goPage(p) { currentPage = p; loadList(); }
+
+  // --- Close detail ---
+  document.getElementById('detailClose').addEventListener('click', () => {
+    document.getElementById('detailOverlay').style.display = 'none';
+  });
+  document.getElementById('detailOverlay').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) document.getElementById('detailOverlay').style.display = 'none';
+  });
+
+  // --- Helpers ---
+  function statusLabel(s) {
+    return { new: 'New', in_progress: 'In Progress', resolved: 'Resolved', ignored: 'Ignored' }[s] || 'New';
+  }
+  function truncate(s, len) { return s && s.length > len ? s.slice(0, len) + '...' : s || ''; }
+  function formatTime(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) + ' ' +
+      d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // Init
+  loadList();
+  </script>
+</body>
+</html>
