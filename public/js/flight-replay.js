@@ -25,7 +25,7 @@
   function FlightReplay(opts) {
     this.quadCanvas = opts.quadCanvas;   // <canvas> for attitude + motors
     this.curveCanvas = opts.curveCanvas; // <canvas> for gyro/throttle curves
-    this.quadCtx = this.quadCanvas.getContext('2d');
+    this.quadCtx = null;
     this.curveCtx = this.curveCanvas.getContext('2d');
     this.data = null;
     this.frame = 0;
@@ -37,6 +37,12 @@
     this.onFrameChange = opts.onFrameChange || null;
     this.motion = null;
     this.trace = null;
+    this.kinematics = null;
+    this.scene3D = null;
+
+    if (!(typeof window !== 'undefined' && window.THREE)) {
+      this.quadCtx = this.quadCanvas.getContext('2d');
+    }
 
     // Curve window — show 300 frames at a time
     this.curveWindow = 300;
@@ -46,6 +52,9 @@
     this.data = parsedData;
     this.motion = buildDisplayMotion(parsedData);
     this.trace = buildDisplayTrace(parsedData, this.motion);
+    this.kinematics = buildReplayKinematics(parsedData, this.motion);
+    this.ensureScene3D();
+    this.syncScene3D();
     this.frame = 0;
     this.framesPerSec = parsedData.count / Math.max(parsedData.durationSec, 0.1);
     if (this.framesPerSec > 500) this.framesPerSec = 60;
@@ -56,7 +65,8 @@
 
   FlightReplay.prototype.resizeCanvases = function () {
     var dpr = window.devicePixelRatio || 1;
-    resizeCanvas(this.quadCanvas, this.quadCtx, dpr);
+    if (this.scene3D) resizeSceneCanvas(this.quadCanvas, this.scene3D.renderer, this.scene3D.camera, dpr);
+    else if (this.quadCtx) resizeCanvas(this.quadCanvas, this.quadCtx, dpr);
     resizeCanvas(this.curveCanvas, this.curveCtx, dpr);
   };
 
@@ -114,6 +124,11 @@
 
   /* ---- Quad attitude + motor viz ---- */
   FlightReplay.prototype.renderQuad = function () {
+    if (this.scene3D) {
+      this.renderScene3D();
+      return;
+    }
+
     var ctx = this.quadCtx;
     var w = this.quadCanvas.width;
     var h = this.quadCanvas.height;
@@ -254,6 +269,162 @@
     ctx.fillText('Y: ' + (d.gyroYaw[f] || 0).toFixed(0) + '\u00b0/s', 10, 48);
   };
 
+  FlightReplay.prototype.ensureScene3D = function () {
+    if (this.scene3D || !(typeof window !== 'undefined' && window.THREE)) return;
+
+    var THREE = window.THREE;
+    var renderer = new THREE.WebGLRenderer({
+      canvas: this.quadCanvas,
+      antialias: true,
+      alpha: false
+    });
+    renderer.setClearColor(0x0d0d0f, 1);
+    if (renderer.outputColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    var scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x0d0d0f, 0.045);
+
+    var camera = new THREE.PerspectiveCamera(42, 1, 0.1, 500);
+
+    var hemi = new THREE.HemisphereLight(0xdff8ff, 0x102030, 1.6);
+    hemi.position.set(0, 12, 0);
+    scene.add(hemi);
+
+    var key = new THREE.DirectionalLight(0xffffff, 1.0);
+    key.position.set(8, 12, 6);
+    scene.add(key);
+
+    var rim = new THREE.DirectionalLight(0x00d4ff, 0.6);
+    rim.position.set(-6, 4, -10);
+    scene.add(rim);
+
+    var grid = new THREE.GridHelper(18, 18, 0x27485a, 0x16242d);
+    scene.add(grid);
+
+    var drone = buildDroneModel3D(THREE);
+    scene.add(drone);
+
+    var pathGroup = new THREE.Group();
+    scene.add(pathGroup);
+
+    this.scene3D = {
+      THREE: THREE,
+      renderer: renderer,
+      scene: scene,
+      camera: camera,
+      drone: drone,
+      grid: grid,
+      pathGroup: pathGroup,
+      fullLine: null,
+      playedLine: null,
+      ghostPoints: null,
+      radius: 6,
+      lookAt: new THREE.Vector3(),
+      cameraPos: new THREE.Vector3(),
+      initialized: false
+    };
+  };
+
+  FlightReplay.prototype.syncScene3D = function () {
+    if (!this.scene3D || !this.kinematics) return;
+
+    clearThreeGroup(this.scene3D.pathGroup);
+    this.scene3D.fullLine = null;
+    this.scene3D.playedLine = null;
+    this.scene3D.ghostPoints = null;
+
+    var THREE = this.scene3D.THREE;
+    var positions = flattenPathPositions(this.kinematics);
+    if (positions.length < 6) return;
+
+    var fullGeometry = new THREE.BufferGeometry();
+    fullGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    var fullMaterial = new THREE.LineBasicMaterial({
+      color: 0x355261,
+      transparent: true,
+      opacity: 0.35
+    });
+    var fullLine = new THREE.Line(fullGeometry, fullMaterial);
+    this.scene3D.pathGroup.add(fullLine);
+
+    var playedGeometry = new THREE.BufferGeometry();
+    playedGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions.slice(), 3));
+    var playedMaterial = new THREE.LineBasicMaterial({
+      color: 0x00d4ff,
+      transparent: true,
+      opacity: 0.95
+    });
+    var playedLine = new THREE.Line(playedGeometry, playedMaterial);
+    playedGeometry.setDrawRange(0, 2);
+    this.scene3D.pathGroup.add(playedLine);
+
+    var ghostGeometry = new THREE.BufferGeometry();
+    ghostGeometry.setAttribute('position', new THREE.Float32BufferAttribute(samplePathPositions(this.kinematics, 24), 3));
+    var ghostMaterial = new THREE.PointsMaterial({
+      color: 0xff6b35,
+      size: 0.09,
+      transparent: true,
+      opacity: 0.55
+    });
+    var ghostPoints = new THREE.Points(ghostGeometry, ghostMaterial);
+    this.scene3D.pathGroup.add(ghostPoints);
+
+    this.scene3D.fullLine = fullLine;
+    this.scene3D.playedLine = playedLine;
+    this.scene3D.ghostPoints = ghostPoints;
+    this.scene3D.radius = this.kinematics.radius || 6;
+    this.scene3D.grid.scale.setScalar(Math.max(0.7, this.scene3D.radius / 6));
+    this.scene3D.grid.position.y = -this.scene3D.radius * 0.35;
+    this.scene3D.initialized = false;
+  };
+
+  FlightReplay.prototype.renderScene3D = function () {
+    if (!this.scene3D || !this.motion || !this.kinematics || !this.data) return;
+
+    var frame = this.frame;
+    var scene3D = this.scene3D;
+    var THREE = scene3D.THREE;
+    var radius = scene3D.radius || 6;
+    var pos = new THREE.Vector3(
+      this.kinematics.x[frame] || 0,
+      this.kinematics.y[frame] || 0,
+      this.kinematics.z[frame] || 0
+    );
+    var yaw = (this.motion.yaw[frame] || 0) * Math.PI / 180;
+    var pitch = (this.motion.pitch[frame] || 0) * Math.PI / 180;
+    var roll = (this.motion.roll[frame] || 0) * Math.PI / 180;
+
+    scene3D.drone.position.copy(pos);
+    scene3D.drone.rotation.order = 'YXZ';
+    scene3D.drone.rotation.y = yaw;
+    scene3D.drone.rotation.x = pitch;
+    scene3D.drone.rotation.z = -roll;
+
+    if (scene3D.playedLine) {
+      scene3D.playedLine.geometry.setDrawRange(0, Math.max(2, frame + 1));
+    }
+
+    var orbit = yaw * 0.16 + frame * 0.004;
+    var desiredCamera = new THREE.Vector3(
+      pos.x + Math.cos(orbit) * radius * 1.35,
+      pos.y + radius * 0.72,
+      pos.z + Math.sin(orbit) * radius * 1.35
+    );
+    var desiredLookAt = new THREE.Vector3(pos.x, pos.y + radius * 0.08, pos.z);
+
+    if (!scene3D.initialized) {
+      scene3D.camera.position.copy(desiredCamera);
+      scene3D.lookAt.copy(desiredLookAt);
+      scene3D.initialized = true;
+    } else {
+      scene3D.camera.position.lerp(desiredCamera, 0.08);
+      scene3D.lookAt.lerp(desiredLookAt, 0.12);
+    }
+
+    scene3D.camera.lookAt(scene3D.lookAt);
+    scene3D.renderer.render(scene3D.scene, scene3D.camera);
+  };
+
   /* ---- Gyro + throttle curves ---- */
   FlightReplay.prototype.renderCurves = function () {
     var ctx = this.curveCtx;
@@ -382,7 +553,17 @@
 
   FlightReplay.prototype.destroy = function () {
     this.pause();
+    this.disposeScene3D();
     this.data = null;
+  };
+
+  FlightReplay.prototype.disposeScene3D = function () {
+    if (!this.scene3D) return;
+
+    clearThreeGroup(this.scene3D.pathGroup);
+    disposeDroneModel3D(this.scene3D.drone);
+    this.scene3D.renderer.dispose();
+    this.scene3D = null;
   };
 
   /* ---- helpers ---- */
@@ -390,10 +571,20 @@
     var rect = canvas.getBoundingClientRect();
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     // Reset the CSS-level dimensions so the canvas is crisp
     canvas.style.width = rect.width + 'px';
     canvas.style.height = rect.height + 'px';
+  }
+
+  function resizeSceneCanvas(canvas, renderer, camera, dpr) {
+    var rect = canvas.getBoundingClientRect();
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+    renderer.setPixelRatio(dpr);
+    renderer.setSize(rect.width, rect.height, false);
+    camera.aspect = rect.width / Math.max(1, rect.height);
+    camera.updateProjectionMatrix();
   }
 
   function buildDisplayMotion(data) {
@@ -457,6 +648,74 @@
     return { x: x, y: y };
   }
 
+  function buildReplayKinematics(data, motion) {
+    var count = Math.max(0, data && data.count ? data.count : 0);
+    var x = new Array(count);
+    var y = new Array(count);
+    var z = new Array(count);
+
+    if (!data || !motion || count === 0) {
+      return { x: [], y: [], z: [], radius: 0 };
+    }
+
+    var sampleRate = data.sampleRateHz || (count / Math.max(data.durationSec || 0, 0.1));
+    if (!isFinite(sampleRate) || sampleRate < 1 || sampleRate > 500) sampleRate = 60;
+    var dt = 1 / sampleRate;
+    var maxTiltDeg = motion.maxTiltDeg || 45;
+    var posX = 0;
+    var posY = 0;
+    var posZ = 0;
+    var speed = 0;
+    var strafe = 0;
+    var climb = 0;
+    var minX = 0, maxX = 0, minY = 0, maxY = 0, minZ = 0, maxZ = 0;
+
+    for (var i = 0; i < count; i++) {
+      var throttle = clamp(Number(data.throttle && data.throttle[i]) || 0, 0, 1);
+      var thrust = Math.max(0, throttle - 0.08);
+      var pitchNorm = clamp((motion.pitch[i] || 0) / maxTiltDeg, -1, 1);
+      var rollNorm = clamp((motion.roll[i] || 0) / maxTiltDeg, -1, 1);
+      var yaw = (motion.yaw[i] || 0) * Math.PI / 180;
+
+      speed = speed * 0.965 + thrust * (0.55 - pitchNorm * 0.28);
+      strafe = strafe * 0.9 + thrust * rollNorm * 0.18;
+      climb = climb * 0.93 + thrust * pitchNorm * 0.24 + Math.max(0, thrust - 0.45) * 0.06;
+
+      posX += (Math.sin(yaw) * speed + Math.cos(yaw) * strafe) * dt * 8;
+      posZ += (-Math.cos(yaw) * speed + Math.sin(yaw) * strafe) * dt * 8;
+      posY += climb * dt * 5;
+
+      x[i] = posX;
+      y[i] = posY;
+      z[i] = posZ;
+      if (posX < minX) minX = posX;
+      if (posX > maxX) maxX = posX;
+      if (posY < minY) minY = posY;
+      if (posY > maxY) maxY = posY;
+      if (posZ < minZ) minZ = posZ;
+      if (posZ > maxZ) maxZ = posZ;
+    }
+
+    var centerX = (minX + maxX) / 2;
+    var centerY = (minY + maxY) / 2;
+    var centerZ = (minZ + maxZ) / 2;
+    var span = Math.max(maxX - minX, maxY - minY, maxZ - minZ, 1);
+    var scale = 10 / span;
+
+    for (var j = 0; j < count; j++) {
+      x[j] = (x[j] - centerX) * scale;
+      y[j] = (y[j] - centerY) * scale;
+      z[j] = (z[j] - centerZ) * scale;
+    }
+
+    return {
+      x: x,
+      y: y,
+      z: z,
+      radius: Math.max(4, span * scale * 0.72)
+    };
+  }
+
   function drawTrace(ctx, trace, frame, cx, cy, radius) {
     if (!trace || !trace.x || !trace.x.length) {
       return { x: cx, y: cy };
@@ -505,6 +764,104 @@
     ctx.stroke();
   }
 
+  function flattenPathPositions(path) {
+    var flat = [];
+    if (!path || !path.x) return flat;
+    for (var i = 0; i < path.x.length; i++) {
+      flat.push(path.x[i] || 0, path.y[i] || 0, path.z[i] || 0);
+    }
+    return flat;
+  }
+
+  function samplePathPositions(path, stride) {
+    var flat = [];
+    if (!path || !path.x) return flat;
+    var step = Math.max(1, stride || 24);
+    for (var i = 0; i < path.x.length; i += step) {
+      flat.push(path.x[i] || 0, path.y[i] || 0, path.z[i] || 0);
+    }
+    var last = path.x.length - 1;
+    if (last >= 0 && (last % step !== 0)) {
+      flat.push(path.x[last] || 0, path.y[last] || 0, path.z[last] || 0);
+    }
+    return flat;
+  }
+
+  function buildDroneModel3D(THREE) {
+    var drone = new THREE.Group();
+    var armMat = new THREE.MeshStandardMaterial({
+      color: 0xe8edf2,
+      roughness: 0.45,
+      metalness: 0.25
+    });
+    var accentMat = new THREE.MeshStandardMaterial({
+      color: 0x00d4ff,
+      emissive: 0x00d4ff,
+      emissiveIntensity: 0.25,
+      roughness: 0.3
+    });
+
+    var armGeo = new THREE.BoxGeometry(1.35, 0.05, 0.08);
+    var armA = new THREE.Mesh(armGeo, armMat);
+    armA.rotation.y = Math.PI / 4;
+    drone.add(armA);
+
+    var armB = new THREE.Mesh(armGeo, armMat);
+    armB.rotation.y = -Math.PI / 4;
+    drone.add(armB);
+
+    var body = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.11, 0.34), accentMat);
+    drone.add(body);
+
+    var front = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.24, 12), accentMat);
+    front.rotation.x = Math.PI / 2;
+    front.position.set(0, 0.02, -0.26);
+    drone.add(front);
+
+    var motorGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.05, 18);
+    var motorOffsets = [
+      [0.46, 0.02, 0.46],
+      [-0.46, 0.02, 0.46],
+      [0.46, 0.02, -0.46],
+      [-0.46, 0.02, -0.46]
+    ];
+    for (var i = 0; i < motorOffsets.length; i++) {
+      var motor = new THREE.Mesh(motorGeo, armMat);
+      motor.rotation.x = Math.PI / 2;
+      motor.position.set(motorOffsets[i][0], motorOffsets[i][1], motorOffsets[i][2]);
+      drone.add(motor);
+    }
+
+    return drone;
+  }
+
+  function clearThreeGroup(group) {
+    if (!group) return;
+    while (group.children.length) {
+      disposeThreeObject(group.children.pop());
+    }
+  }
+
+  function disposeDroneModel3D(drone) {
+    if (!drone) return;
+    while (drone.children.length) {
+      disposeThreeObject(drone.children.pop());
+    }
+  }
+
+  function disposeThreeObject(obj) {
+    if (!obj) return;
+    if (obj.parent) obj.parent.remove(obj);
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      if (Array.isArray(obj.material)) {
+        for (var i = 0; i < obj.material.length; i++) obj.material[i].dispose();
+      } else {
+        obj.material.dispose();
+      }
+    }
+  }
+
   function sanitizeRate(value) {
     if (!isFinite(value)) return 0;
     if (Math.abs(value) < 2) return 0;
@@ -524,6 +881,7 @@
   exports.FlightReplay = FlightReplay;
   exports.buildDisplayMotion = buildDisplayMotion;
   exports.buildDisplayTrace = buildDisplayTrace;
+  exports.buildReplayKinematics = buildReplayKinematics;
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = exports;
   }

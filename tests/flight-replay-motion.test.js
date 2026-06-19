@@ -1,7 +1,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { buildDisplayMotion, buildDisplayTrace } = require('../public/js/flight-replay');
+const { buildDisplayMotion, buildDisplayTrace, buildReplayKinematics } = require('../public/js/flight-replay');
 
 function makeFrames(count, rates) {
   return {
@@ -11,6 +11,7 @@ function makeFrames(count, rates) {
     gyroRoll: new Array(count).fill(rates.roll || 0),
     gyroPitch: new Array(count).fill(rates.pitch || 0),
     gyroYaw: new Array(count).fill(rates.yaw || 0),
+    throttle: new Array(count).fill(rates.throttle || 0),
   };
 }
 
@@ -86,5 +87,45 @@ describe('Flight replay attitude trace', () => {
 
     assert.ok(trace.x.every(v => v === 0));
     assert.ok(trace.y.every(v => v === 0));
+  });
+});
+
+describe('Flight replay 3D kinematics', () => {
+  it('stays centered with zero throttle and level attitude', () => {
+    const motion = buildDisplayMotion(makeFrames(120, {
+      roll: 0,
+      pitch: 0,
+      yaw: 0,
+      throttle: 0
+    }));
+    const path = buildReplayKinematics(makeFrames(120, {
+      roll: 0,
+      pitch: 0,
+      yaw: 0,
+      throttle: 0
+    }), motion);
+
+    assert.ok(path.x.every(v => Math.abs(v) < 1e-9));
+    assert.ok(path.y.every(v => Math.abs(v) < 1e-9));
+    assert.ok(path.z.every(v => Math.abs(v) < 1e-9));
+  });
+
+  it('produces a finite 3D path under sustained throttle and yaw motion', () => {
+    const frames = makeFrames(180, {
+      roll: 300,
+      pitch: -450,
+      yaw: 600,
+      throttle: 0.72
+    });
+    const motion = buildDisplayMotion(frames);
+    const path = buildReplayKinematics(frames, motion);
+
+    assert.equal(path.x.length, 180);
+    assert.equal(path.y.length, 180);
+    assert.equal(path.z.length, 180);
+    assert.ok(path.radius >= 4);
+    assert.ok(path.x.every(Number.isFinite));
+    assert.ok(path.y.every(Number.isFinite));
+    assert.ok(path.z.every(Number.isFinite));
   });
 });
