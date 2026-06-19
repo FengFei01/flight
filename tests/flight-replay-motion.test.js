@@ -1,7 +1,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { buildDisplayMotion } = require('../public/js/flight-replay');
+const { buildDisplayMotion, buildDisplayTrace } = require('../public/js/flight-replay');
 
 function makeFrames(count, rates) {
   return {
@@ -50,5 +50,41 @@ describe('Flight replay display motion', () => {
     for (const series of [motion.roll, motion.pitch, motion.yaw]) {
       assert.ok(series.every(Number.isFinite));
     }
+  });
+});
+
+describe('Flight replay attitude trace', () => {
+  it('maps roll and pitch history into normalized trace coordinates', () => {
+    const trace = buildDisplayTrace(
+      { count: 3 },
+      {
+        roll: [45, 0, -45],
+        pitch: [-45, 0, 45],
+        yaw: [0, 90, 180],
+        maxTiltDeg: 45,
+      }
+    );
+
+    assert.ok(trace.x[0] > 0.9);
+    assert.ok(Math.abs(trace.x[1]) < 1e-9);
+    assert.ok(trace.x[2] < -0.9);
+    assert.ok(trace.y[0] > 0.9);
+    assert.ok(Math.abs(trace.y[1]) < 1e-9);
+    assert.ok(trace.y[2] < -0.9);
+  });
+
+  it('keeps the attitude trace centered when roll and pitch stay level', () => {
+    const trace = buildDisplayTrace(
+      { count: 4 },
+      {
+        roll: [0, 0, 0, 0],
+        pitch: [0, 0, 0, 0],
+        yaw: [0, 90, -90, 180],
+        maxTiltDeg: 45,
+      }
+    );
+
+    assert.ok(trace.x.every(v => v === 0));
+    assert.ok(trace.y.every(v => v === 0));
   });
 });

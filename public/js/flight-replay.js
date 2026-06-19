@@ -36,6 +36,7 @@
     this.framesPerSec = 60;
     this.onFrameChange = opts.onFrameChange || null;
     this.motion = null;
+    this.trace = null;
 
     // Curve window — show 300 frames at a time
     this.curveWindow = 300;
@@ -44,6 +45,7 @@
   FlightReplay.prototype.loadData = function (parsedData) {
     this.data = parsedData;
     this.motion = buildDisplayMotion(parsedData);
+    this.trace = buildDisplayTrace(parsedData, this.motion);
     this.frame = 0;
     this.framesPerSec = parsedData.count / Math.max(parsedData.durationSec, 0.1);
     if (this.framesPerSec > 500) this.framesPerSec = 60;
@@ -123,6 +125,7 @@
     ctx.clearRect(0, 0, w, h);
 
     var motion = this.motion || buildDisplayMotion(d);
+    var trace = this.trace || buildDisplayTrace(d, motion);
     var rollDeg = motion.roll[f] || 0;
     var pitchDeg = motion.pitch[f] || 0;
     var yawRad = (motion.yaw[f] || 0) * Math.PI / 180;
@@ -144,13 +147,15 @@
     ctx.moveTo(0, cy); ctx.lineTo(w, cy);
     ctx.stroke();
 
+    var quadPos = drawTrace(ctx, trace, f, cx, cy, Math.min(cx, cy) * 0.58);
+
     // Quad body — top-down heading cue. Roll/pitch are shown on the bars below.
     ctx.save();
-    ctx.translate(cx, cy);
+    ctx.translate(quadPos.x, quadPos.y);
     ctx.rotate(yawRad);
 
     // Arms
-    var armLen = Math.min(cx, cy) * 0.6;
+    var armLen = Math.min(cx, cy) * 0.22;
     var angles = [-Math.PI / 4, Math.PI / 4, 3 * Math.PI / 4, -3 * Math.PI / 4];
     var motorVals = [];
     for (var i = 0; i < 4; i++) {
@@ -434,6 +439,72 @@
     return { roll: roll, pitch: pitch, yaw: yaw, maxTiltDeg: maxTiltDeg };
   }
 
+  function buildDisplayTrace(data, motion) {
+    var count = Math.max(0, data && data.count ? data.count : 0);
+    var x = new Array(count);
+    var y = new Array(count);
+
+    if (!data || !motion || count === 0) {
+      return { x: [], y: [] };
+    }
+
+    var maxTiltDeg = motion.maxTiltDeg || 45;
+    for (var i = 0; i < count; i++) {
+      x[i] = clamp((motion.roll[i] || 0) / maxTiltDeg, -1, 1) * 0.92;
+      y[i] = clamp(-(motion.pitch[i] || 0) / maxTiltDeg, -1, 1) * 0.92;
+    }
+
+    return { x: x, y: y };
+  }
+
+  function drawTrace(ctx, trace, frame, cx, cy, radius) {
+    if (!trace || !trace.x || !trace.x.length) {
+      return { x: cx, y: cy };
+    }
+
+    var currentX = cx + (trace.x[frame] || 0) * radius;
+    var currentY = cy + (trace.y[frame] || 0) * radius;
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    drawTraceSegment(ctx, trace, 0, trace.x.length - 1, cx, cy, radius, 'rgba(136,153,170,0.20)', 1.2);
+    drawTraceSegment(ctx, trace, frame, Math.min(trace.x.length - 1, frame + 120), cx, cy, radius, 'rgba(255,107,53,0.18)', 1.4);
+    drawTraceSegment(ctx, trace, Math.max(0, frame - 220), frame, cx, cy, radius, 'rgba(0,212,255,0.72)', 2.4);
+
+    var glow = ctx.createRadialGradient(currentX, currentY, 0, currentX, currentY, 18);
+    glow.addColorStop(0, 'rgba(0,212,255,0.5)');
+    glow.addColorStop(1, 'rgba(0,212,255,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(currentX, currentY, 18, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = C.accent;
+    ctx.beginPath();
+    ctx.arc(currentX, currentY, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+    return { x: currentX, y: currentY };
+  }
+
+  function drawTraceSegment(ctx, trace, start, end, cx, cy, radius, color, width) {
+    if (end <= start) return;
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    for (var i = start; i <= end; i++) {
+      var px = cx + (trace.x[i] || 0) * radius;
+      var py = cy + (trace.y[i] || 0) * radius;
+      if (i === start) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  }
+
   function sanitizeRate(value) {
     if (!isFinite(value)) return 0;
     if (Math.abs(value) < 2) return 0;
@@ -452,6 +523,7 @@
 
   exports.FlightReplay = FlightReplay;
   exports.buildDisplayMotion = buildDisplayMotion;
+  exports.buildDisplayTrace = buildDisplayTrace;
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = exports;
   }
