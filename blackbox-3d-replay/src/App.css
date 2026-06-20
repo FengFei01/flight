@@ -1,0 +1,270 @@
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background:
+    radial-gradient(circle at top left, rgb(31 70 105 / 0.32), transparent 28%),
+    radial-gradient(circle at top right, rgb(29 108 87 / 0.2), transparent 24%),
+    #071018;
+}
+
+.topbar {
+  padding: 1.4rem 1.6rem 1rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.topbar p {
+  margin: 0.45rem 0 0;
+  max-width: 62rem;
+  color: rgb(201 215 231 / 0.72);
+}
+
+.workspace {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr) 320px;
+}
+
+.left-panel,
+.telemetry-panel {
+  min-height: 0;
+  overflow: auto;
+  padding: 1rem 1rem 1.1rem;
+  border-right: 1px solid rgb(255 255 255 / 0.08);
+  background: rgb(6 12 20 / 0.68);
+}
+
+.telemetry-panel {
+  border-right: none;
+  border-left: 1px solid rgb(255 255 255 / 0.08);
+}
+
+.scene-panel {
+  min-height: 0;
+  position: relative;
+}
+
+.scene-empty {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: rgb(193 209 225 / 0.72);
+}
+
+.panel-section {
+  padding: 0 0 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.07);
+}
+
+.section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.file-picker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 0.9rem;
+  border: 1px solid rgb(104 180 241 / 0.28);
+  background: rgb(18 33 49 / 0.95);
+  color: #e7f3ff;
+  cursor: pointer;
+}
+
+.file-picker input {
+  display: none;
+}
+
+.segment-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.segment-item {
+  display: grid;
+  gap: 0.16rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  background: rgb(14 24 36 / 0.92);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.segment-item.active {
+  border-color: rgb(104 180 241 / 0.42);
+  background: rgb(18 33 49 / 1);
+}
+
+.key-grid {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.key-grid.compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.key-grid div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.key-grid dt {
+  color: rgb(150 171 192 / 0.72);
+  font-size: 0.78rem;
+}
+
+.key-grid dd {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.issue-list {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.issue-list li {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.55rem 0.65rem;
+  background: rgb(14 24 36 / 0.76);
+  border-left: 2px solid rgb(255 155 120 / 0.55);
+}
+
+.controls-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.95rem 1.2rem 1.1rem;
+  border-top: 1px solid rgb(255 255 255 / 0.08);
+  background: rgb(7 14 24 / 0.92);
+}
+
+.primary-button {
+  min-width: 92px;
+  min-height: 40px;
+  border: 1px solid rgb(104 180 241 / 0.34);
+  background: rgb(22 41 61);
+  color: #ecf7ff;
+}
+
+.time-slider {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.time-slider input {
+  width: 100%;
+}
+
+.timeline-label {
+  display: flex;
+  justify-content: space-between;
+  color: rgb(170 189 209 / 0.76);
+}
+
+.control-stack {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: auto auto;
+  align-items: end;
+}
+
+.control-stack label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.gyro-scale-control {
+  min-width: 180px;
+}
+
+.gyro-scale-control input {
+  width: 100%;
+}
+
+.mono {
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    Liberation Mono,
+    monospace;
+}
+
+.muted {
+  color: rgb(170 189 209 / 0.72);
+}
+
+@media (max-width: 1200px) {
+  .workspace {
+    grid-template-columns: 300px minmax(0, 1fr);
+    grid-template-areas:
+      'left scene'
+      'telemetry scene';
+  }
+
+  .left-panel {
+    grid-area: left;
+  }
+
+  .scene-panel {
+    grid-area: scene;
+  }
+
+  .telemetry-panel {
+    grid-area: telemetry;
+    border-left: none;
+    border-top: 1px solid rgb(255 255 255 / 0.08);
+    border-right: 1px solid rgb(255 255 255 / 0.08);
+  }
+}
+
+@media (max-width: 900px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .left-panel,
+  .telemetry-panel {
+    border-right: none;
+    border-left: none;
+  }
+
+  .scene-panel {
+    min-height: 55vh;
+  }
+
+  .controls-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .control-stack {
+    grid-template-columns: 1fr;
+  }
+}
