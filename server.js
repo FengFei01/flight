@@ -39,6 +39,7 @@ app.get('/health', (_req, res) => {
 
 // Static files
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
+app.use(express.static(path.join(__dirname, 'blackbox-3d-replay', 'dist'), { index: false }));
 
 // Landing page
 const { getPlatformStats } = require('./db/stats');
@@ -61,8 +62,13 @@ app.get('/pricing', (_req, res) => {
   res.redirect('/');
 });
 
-// Flight Replay — browser-side BBL replay with Canvas animation.
+// Flight Replay — serve the new browser-only 3D replay prototype.
 app.get('/replay', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'blackbox-3d-replay', 'dist', 'index.html'));
+});
+
+// Legacy replay kept for fallback while the new prototype is being folded in.
+app.get('/replay-legacy', (_req, res) => {
   res.render('replay');
 });
 
