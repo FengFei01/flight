@@ -1,9 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
-import { decodeSegment } from './blackbox/decoder'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { splitLogSegments } from './blackbox/segment'
-import type { BlackboxSegment, DecodedSegmentResult, ReplayFrame } from './blackbox/types'
+import type { BlackboxSegment, ReplayBuildResult, ReplayFrame } from './blackbox/types'
 import { buildReplayFrames } from './flight/replay'
-import { buildFlightTimeline } from './flight/timeline'
 import { FlightScene } from './render/FlightScene'
 import { FilePicker } from './ui/FilePicker'
 import { ReplayControls } from './ui/ReplayControls'
@@ -20,25 +18,71 @@ function App() {
   const [fileState, setFileState] = useState<FileState | null>(null)
   const [segments, setSegments] = useState<BlackboxSegment[]>([])
   const [selectedSegmentIndex, setSelectedSegmentIndex] = useState(0)
-  const [decodeResult, setDecodeResult] = useState<DecodedSegmentResult | null>(null)
+  const [decodeResult, setDecodeResult] = useState<ReplayBuildResult | null>(null)
   const [replayFrames, setReplayFrames] = useState<ReplayFrame[]>([])
   const [isPlaying, setIsPlaying] = useState(false)
   const [playheadTime, setPlayheadTime] = useState(0)
   const [playbackRate, setPlaybackRate] = useState(1)
   const [gyroScale, setGyroScale] = useState(1)
+  const [isDecoding, setIsDecoding] = useState(false)
+  const [decodeError, setDecodeError] = useState<string | null>(null)
+  const [loadedSegmentIndex, setLoadedSegmentIndex] = useState<number | null>(null)
+  const workerRef = useRef<Worker | null>(null)
+  const requestIdRef = useRef(0)
+
+  useEffect(() => {
+    const worker = new Worker(new URL('./blackbox/replay.worker.ts', import.meta.url), { type: 'module' })
+    workerRef.current = worker
+
+    worker.onmessage = (event: MessageEvent<{ requestId: number; result?: ReplayBuildResult; error?: string }>) => {
+      if (event.data.requestId !== requestIdRef.current) {
+        return
+      }
+
+      setIsDecoding(false)
+
+      if (event.data.error) {
+        setDecodeError(event.data.error)
+        setDecodeResult(null)
+        return
+      }
+
+      setDecodeError(null)
+      setDecodeResult(event.data.result ?? null)
+    }
+
+    return () => {
+      worker.terminate()
+      workerRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
     if (!segments.length) {
       setDecodeResult(null)
+      setDecodeError(null)
+      setIsDecoding(false)
+      setLoadedSegmentIndex(null)
+      return
+    }
+  }, [segments])
+
+  useEffect(() => {
+    if (loadedSegmentIndex === null || !segments.length) {
       return
     }
 
-    const activeSegment = segments[selectedSegmentIndex] ?? segments[0]
-    const nextResult = decodeSegment(activeSegment.raw)
-    setDecodeResult(nextResult)
+    const activeSegment = segments[loadedSegmentIndex] ?? segments[0]
+    requestIdRef.current += 1
+    setIsDecoding(true)
+    setDecodeError(null)
+    workerRef.current?.postMessage({
+      requestId: requestIdRef.current,
+      segmentBytes: activeSegment.raw,
+    })
     setPlayheadTime(0)
     setIsPlaying(false)
-  }, [segments, selectedSegmentIndex])
+  }, [loadedSegmentIndex, segments])
 
   useEffect(() => {
     if (!decodeResult) {
@@ -46,8 +90,7 @@ function App() {
       return
     }
 
-    const samples = buildFlightTimeline(decodeResult.frames)
-    const nextReplayFrames = buildReplayFrames(samples, gyroScale)
+    const nextReplayFrames = buildReplayFrames(decodeResult.samples, gyroScale)
     setReplayFrames(nextReplayFrames)
     setPlayheadTime(0)
   }, [decodeResult, gyroScale])
@@ -86,6 +129,8 @@ function App() {
   }, [isPlaying, playbackRate, replayFrames])
 
   const duration = replayFrames[replayFrames.length - 1]?.t ?? 0
+  const playbackDisabled = isDecoding || replayFrames.length < 2
+  const playLabel = isDecoding ? 'Decoding...' : isPlaying ? 'Pause' : 'Play'
   const currentFrameIndex = useMemo(
     () => findFrameIndexByTime(replayFrames, playheadTime),
     [replayFrames, playheadTime],
@@ -115,6 +160,10 @@ function App() {
               setFileState({ name: file.name, size: file.size })
               setSegments(nextSegments)
               setSelectedSegmentIndex(0)
+              setLoadedSegmentIndex(null)
+              setDecodeResult(null)
+              setReplayFrames([])
+              setDecodeError(null)
             }}
           />
 
@@ -122,6 +171,9 @@ function App() {
             <SegmentSelector
               segments={segments}
               selectedIndex={selectedSegmentIndex}
+              onLoad={() => setLoadedSegmentIndex(selectedSegmentIndex)}
+              isLoading={isDecoding}
+              canLoad={segments.length > 0}
               onSelect={setSelectedSegmentIndex}
             />
           ) : null}
@@ -141,12 +193,24 @@ function App() {
                 <dd>{segments.length ? selectedSegmentIndex + 1 : 'n/a'}</dd>
               </div>
               <div>
+                <dt>Loaded</dt>
+                <dd>{loadedSegmentIndex === null ? 'none' : loadedSegmentIndex + 1}</dd>
+              </div>
+              <div>
                 <dt>Decoded Frames</dt>
                 <dd>{decodeResult?.stats.decodedFrames ?? 0}</dd>
               </div>
               <div>
+                <dt>Timeline Samples</dt>
+                <dd>{decodeResult?.sampleCount ?? 0}</dd>
+              </div>
+              <div>
                 <dt>Replay Frames</dt>
                 <dd>{replayFrames.length}</dd>
+              </div>
+              <div>
+                <dt>Decoding</dt>
+                <dd>{isDecoding ? 'running' : 'idle'}</dd>
               </div>
               <div>
                 <dt>GPS</dt>
@@ -158,6 +222,15 @@ function App() {
               </div>
             </dl>
           </section>
+
+          {decodeError ? (
+            <section className="panel-section">
+              <div className="section-heading">
+                <h2>Decode Error</h2>
+              </div>
+              <p className="muted">{decodeError}</p>
+            </section>
+          ) : null}
 
           {decodeResult ? (
             <section className="panel-section">
@@ -244,6 +317,8 @@ function App() {
         playbackRate={playbackRate}
         isPlaying={isPlaying}
         gyroScale={gyroScale}
+        disabled={playbackDisabled}
+        playLabel={playLabel}
         onSeek={setPlayheadTime}
         onTogglePlay={() => setIsPlaying((value) => !value)}
         onPlaybackRateChange={setPlaybackRate}

@@ -92,6 +92,11 @@
   display: none;
 }
 
+.segment-load-button {
+  width: 100%;
+  margin-bottom: 0.85rem;
+}
+
 .segment-list {
   display: grid;
   gap: 0.6rem;
@@ -135,6 +140,7 @@
 .key-grid dd {
   margin: 0;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .issue-list {
@@ -169,6 +175,13 @@
   border: 1px solid rgb(104 180 241 / 0.34);
   background: rgb(22 41 61);
   color: #ecf7ff;
+}
+
+.primary-button:disabled,
+.controls-bar input:disabled,
+.controls-bar select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .time-slider {

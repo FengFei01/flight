@@ -3,16 +3,30 @@ import type { BlackboxSegment } from '../blackbox/types'
 type SegmentSelectorProps = {
   segments: BlackboxSegment[]
   selectedIndex: number
+  onLoad: () => void
+  isLoading?: boolean
+  canLoad?: boolean
   onSelect: (index: number) => void
 }
 
-export function SegmentSelector({ segments, selectedIndex, onSelect }: SegmentSelectorProps) {
+export function SegmentSelector({
+  segments,
+  selectedIndex,
+  onLoad,
+  isLoading,
+  canLoad,
+  onSelect,
+}: SegmentSelectorProps) {
   return (
     <section className="panel-section">
       <div className="section-heading">
         <h2>Segments</h2>
         <span className="mono">{segments.length}</span>
       </div>
+
+      <button type="button" className="primary-button segment-load-button" onClick={onLoad} disabled={!canLoad || isLoading}>
+        {isLoading ? 'Loading...' : 'Load Selected'}
+      </button>
 
       <div className="segment-list">
         {segments.map((segment) => (

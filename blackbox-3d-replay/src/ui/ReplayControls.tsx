@@ -4,6 +4,8 @@ type ReplayControlsProps = {
   playbackRate: number
   isPlaying: boolean
   gyroScale: number
+  disabled?: boolean
+  playLabel?: string
   onSeek: (time: number) => void
   onTogglePlay: () => void
   onPlaybackRateChange: (value: number) => void
@@ -18,6 +20,8 @@ export function ReplayControls({
   playbackRate,
   isPlaying,
   gyroScale,
+  disabled,
+  playLabel,
   onSeek,
   onTogglePlay,
   onPlaybackRateChange,
@@ -25,8 +29,8 @@ export function ReplayControls({
 }: ReplayControlsProps) {
   return (
     <section className="controls-bar">
-      <button type="button" className="primary-button" onClick={onTogglePlay}>
-        {isPlaying ? 'Pause' : 'Play'}
+      <button type="button" className="primary-button" onClick={onTogglePlay} disabled={disabled}>
+        {playLabel ?? (isPlaying ? 'Pause' : 'Play')}
       </button>
 
       <div className="time-slider">
@@ -36,6 +40,7 @@ export function ReplayControls({
           max={duration || 0}
           step={Math.max(duration / 1000, 0.01)}
           value={Math.min(currentTime, duration || 0)}
+          disabled={disabled}
           onChange={(event) => onSeek(Number(event.target.value))}
         />
         <div className="timeline-label">
@@ -64,6 +69,7 @@ export function ReplayControls({
             max={3}
             step={0.05}
             value={gyroScale}
+            disabled={disabled}
             onChange={(event) => onGyroScaleChange(Number(event.target.value))}
           />
           <strong className="mono">{gyroScale.toFixed(2)}x</strong>

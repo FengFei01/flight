@@ -15,6 +15,7 @@ import type {
 const MAIN_FRAME_TYPES: FrameType[] = ['I', 'P']
 const FRAME_MARKERS = new Set<number>(['I', 'P', 'G', 'H', 'S', 'E'].map((type) => type.charCodeAt(0)))
 const TIME_CHECK_INTERVAL = 1000
+const MAX_STORED_ISSUES = 200
 const EVENT_TYPES = {
   SYNC_BEEP: 0,
   AUTOTUNE_CYCLE_START: 10,
@@ -44,11 +45,24 @@ type DecodeState = {
   lastFrameTime: number
 }
 
-export function decodeSegment(segmentBytes: Uint8Array): DecodedSegmentResult {
+type DecodeOptions = {
+  maxFrames?: number
+  maxRuntimeMs?: number
+  maxSkippedFrames?: number
+}
+
+export function decodeSegment(
+  segmentBytes: Uint8Array,
+  options: DecodeOptions = {},
+): DecodedSegmentResult {
   const headers = parseHeaders(segmentBytes)
   const frameDefs = buildFrameDefinitions(headers)
   const reader = new BlackboxReader(segmentBytes, headers.headerEndOffset)
   const frames: DecodedFrame[] = []
+  const decodeStart = performance.now()
+  const maxFrames = options.maxFrames ?? Number.POSITIVE_INFINITY
+  const maxRuntimeMs = options.maxRuntimeMs ?? Number.POSITIVE_INFINITY
+  const maxSkippedFrames = options.maxSkippedFrames ?? Number.POSITIVE_INFINITY
 
   const state: DecodeState = {
     headers,
@@ -71,6 +85,33 @@ export function decodeSegment(segmentBytes: Uint8Array): DecodedSegmentResult {
   }
 
   while (!reader.eof) {
+    if (state.stats.decodedFrames >= maxFrames) {
+      state.warnings.push({
+        offset: reader.offset,
+        message: `Decode capped at ${maxFrames} frames for responsive playback`,
+      })
+      trimIssueBuffer(state.warnings)
+      break
+    }
+
+    if (state.stats.skippedFrames >= maxSkippedFrames) {
+      state.warnings.push({
+        offset: reader.offset,
+        message: `Stopped after ${maxSkippedFrames} skipped frames while recovering from parse errors`,
+      })
+      trimIssueBuffer(state.warnings)
+      break
+    }
+
+    if (performance.now() - decodeStart >= maxRuntimeMs) {
+      state.warnings.push({
+        offset: reader.offset,
+        message: `Decode timed out after ${Math.round(maxRuntimeMs)}ms; using partial results`,
+      })
+      trimIssueBuffer(state.warnings)
+      break
+    }
+
     const frameStart = reader.offset
     const marker = reader.readByte()
 
@@ -80,6 +121,7 @@ export function decodeSegment(segmentBytes: Uint8Array): DecodedSegmentResult {
         offset: frameStart,
         message: `Unexpected byte 0x${marker.toString(16)} while searching for frame marker`,
       })
+      trimIssueBuffer(state.warnings)
       state.stats.skippedFrames += 1
 
       if (recovered < 0) {
@@ -117,6 +159,7 @@ export function decodeSegment(segmentBytes: Uint8Array): DecodedSegmentResult {
         frameType,
         message: error instanceof Error ? error.message : String(error),
       })
+      trimIssueBuffer(state.errors)
       state.stats.skippedFrames += 1
 
       if (recovered < 0) {
@@ -217,6 +260,7 @@ function decodeFrame(
       frameType,
       message: `Missing header definition for frame type ${frameType}`,
     })
+    trimIssueBuffer(state.warnings)
     return null
   }
 
@@ -471,6 +515,7 @@ function skipEventFrame(reader: BlackboxReader, state: DecodeState): void {
         frameType: 'E',
         message: `Unknown event type ${eventType}, attempting to recover`,
       })
+      trimIssueBuffer(state.warnings)
       break
   }
 }
@@ -496,6 +541,7 @@ function checkTimelineMonotonicity(frames: DecodedFrame[], state: DecodeState): 
         frameType: frames[index].frameType,
         message: 'Frame time regressed inside the last 1000-frame window',
       })
+      trimIssueBuffer(state.warnings)
       return
     }
   }
@@ -503,4 +549,12 @@ function checkTimelineMonotonicity(frames: DecodedFrame[], state: DecodeState): 
 
 function fillWithFallback(values: number[], count: number, fallback: number): number[] {
   return new Array(count).fill(fallback).map((item, index) => values[index] ?? item)
+}
+
+function trimIssueBuffer(issues: DecodeIssue[]): void {
+  if (issues.length <= MAX_STORED_ISSUES) {
+    return
+  }
+
+  issues.splice(MAX_STORED_ISSUES)
 }

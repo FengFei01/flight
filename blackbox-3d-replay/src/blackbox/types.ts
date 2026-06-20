@@ -118,3 +118,12 @@ export type DecodedSegmentResult = {
     monotonicityWarnings: number
   }
 }
+
+export type ReplayBuildResult = {
+  headers: BlackboxHeaders
+  warnings: DecodeIssue[]
+  errors: DecodeIssue[]
+  stats: DecodedSegmentResult['stats']
+  sampleCount: number
+  samples: FlightSample[]
+}
